@@ -38,13 +38,18 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
     fetchCategories();
   }, [classFilter]); 
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
+    return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  };
+
   const fetchDocuments = async () => {
     try {
       setLoading(true);
       let url = `${API_URL}/api/documents?`;
       if (classFilter) url += `class_name=${classFilter}&`;
 
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: getAuthHeaders() });
       const data = await res.json();
       setDocuments(data || []);
     } catch (err) {
@@ -59,7 +64,7 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
       let url = `${API_URL}/api/documents/categories?`;
       if (classFilter) url += `class_name=${classFilter}&`;
       
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: getAuthHeaders() });
       const data = await res.json();
       setCategories(data || []);
     } catch (err) {
@@ -76,7 +81,7 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(docForm)
       });
       if (!res.ok) {
@@ -95,7 +100,7 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
   const handleDeleteDocument = async (id) => {
     if (!window.confirm('Bạn có chắc muốn xóa tài liệu này?')) return;
     try {
-      const res = await fetch(`${API_URL}/api/documents/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/documents/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Lỗi xóa tài liệu');
       await fetchDocuments();
       if(fetchStats) await fetchStats();
@@ -119,7 +124,7 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
       
@@ -139,7 +144,7 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
   const handleDeleteCategory = async (id) => {
     if (!window.confirm('Bạn có chắc muốn xóa thư mục này? Các tài liệu bên trong sẽ bị mất thư mục (thành tài liệu chung ngoài cùng).')) return;
     try {
-      const res = await fetch(`${API_URL}/api/documents/categories/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/documents/categories/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Lỗi xóa thư mục');
       
       // Nếu đang mở thư mục bị xóa thì thoát ra ngoài 1 cấp hoặc về root

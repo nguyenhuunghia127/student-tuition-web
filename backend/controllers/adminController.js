@@ -559,26 +559,40 @@ export const getAssignments = async (req, res) => {
 };
 
 export const createAssignment = async (req, res) => {
-  const { title, description, file_url, deadline, submission_folder_url, target_type, target_id, class_id, student_id } = req.body;
+  const { title, description, file_url, deadline, submission_folder_url, target_type, target_id, class_id, student_id, attached_documents } = req.body;
 
   if (!title || !deadline) return errorResponse(res, 'Tiêu đề và Hạn nộp là bắt buộc');
 
   try {
+    // Insert assignment WITHOUT target_type/target_id (check constraint on Supabase only allows NULL or specific values)
+    const insertPayload = { title, description, file_url, deadline, submission_folder_url };
+
     const { data: assignment, error: assignErr } = await supabaseAdmin
       .from('assignments')
-      .insert({ title, description, file_url, deadline, submission_folder_url, target_type, target_id })
+      .insert(insertPayload)
       .select()
       .single();
 
     if (assignErr) return errorResponse(res, 'Lỗi tạo bài tập', assignErr);
 
-    if (target_type) {
-      await supabaseAdmin.from('assignment_targets').insert({
+    // Insert into assignment_targets for proper targeting
+    const resolvedClassId = class_id || (target_type === 'class' ? target_id : null);
+    const resolvedStudentId = student_id || (target_type === 'student' ? target_id : null);
+
+    await supabaseAdmin.from('assignment_targets').insert({
+      assignment_id: assignment.assignment_id,
+      target_type: target_type || 'global',
+      class_id: resolvedClassId || null,
+      student_id: resolvedStudentId || null
+    }).then(() => {}).catch(() => {});
+
+    // Attach documents if any
+    if (Array.isArray(attached_documents) && attached_documents.length > 0) {
+      const docLinks = attached_documents.map(doc_id => ({
         assignment_id: assignment.assignment_id,
-        target_type: target_type || 'global',
-        class_id: class_id || null,
-        student_id: student_id || null
-      }).then(() => {}).catch(() => {});
+        document_id: doc_id
+      }));
+      await supabaseAdmin.from('assignment_documents').insert(docLinks).then(() => {}).catch(() => {});
     }
 
     await logActivity('admin', req.user?.id, 'CREATE', 'assignments', `Tạo bài tập mới: ${title}`);
