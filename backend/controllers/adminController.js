@@ -48,17 +48,23 @@ export const getClasses = async (req, res) => {
 };
 
 export const createClass = async (req, res) => {
-  const { class_name, grade_level, academic_year } = req.body;
+  const { class_name, grade_level, academic_year, subject, tuition_fee } = req.body;
   if (!class_name) return errorResponse(res, 'Tên lớp học không được để trống');
 
   try {
     const { data, error } = await supabaseAdmin
       .from('classes')
-      .insert({ class_name: class_name.trim(), grade_level, academic_year: academic_year || '2024-2025' })
+      .insert({ 
+        class_name: class_name.trim(), 
+        grade_level, 
+        academic_year: academic_year || '2024-2025',
+        subject: subject || null,
+        tuition_fee: tuition_fee ? Number(tuition_fee) : null
+      })
       .select()
       .single();
 
-    if (error) return errorResponse(res, 'Không thể tạo lớp học (hãy đảm bảo đã chạy database.sql)', error);
+    if (error) return errorResponse(res, 'Không thể tạo lớp học', error);
     await logActivity('admin', req.user?.id, 'CREATE', 'classes', `Tạo lớp học mới: ${class_name}`);
     return successResponse(res, data, 'Tạo lớp học thành công');
   } catch (error) {
@@ -68,12 +74,18 @@ export const createClass = async (req, res) => {
 
 export const updateClass = async (req, res) => {
   const { id } = req.params;
-  const { class_name, grade_level, academic_year } = req.body;
+  const { class_name, grade_level, academic_year, subject, tuition_fee } = req.body;
 
   try {
     const { data, error } = await supabaseAdmin
       .from('classes')
-      .update({ class_name, grade_level, academic_year })
+      .update({ 
+        class_name: class_name?.trim(), 
+        grade_level, 
+        academic_year,
+        subject: subject || null,
+        tuition_fee: tuition_fee ? Number(tuition_fee) : null 
+      })
       .eq('class_id', id)
       .select()
       .single();
@@ -81,6 +93,50 @@ export const updateClass = async (req, res) => {
     if (error) return errorResponse(res, 'Không thể cập nhật thông tin lớp học', error);
     await logActivity('admin', req.user?.id, 'UPDATE', 'classes', `Cập nhật lớp học ID: ${id}`);
     return successResponse(res, data, 'Cập nhật lớp học thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};
+
+export const assignStudentsToClass = async (req, res) => {
+  const { id } = req.params;
+  const { student_ids } = req.body; // Array of student_ids
+
+  if (!Array.isArray(student_ids) || student_ids.length === 0) {
+    return errorResponse(res, 'Danh sách học sinh không hợp lệ');
+  }
+
+  try {
+    const inserts = student_ids.map(student_id => ({
+      class_id: id,
+      student_id
+    }));
+
+    const { error } = await supabaseAdmin
+      .from('student_classes')
+      .upsert(inserts, { onConflict: 'student_id,class_id' });
+
+    if (error) return errorResponse(res, 'Không thể gán học sinh vào lớp', error);
+    await logActivity('admin', req.user?.id, 'CREATE', 'student_classes', `Gán ${student_ids.length} học sinh vào lớp ID: ${id}`);
+    return successResponse(res, null, 'Gán học sinh vào lớp thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};
+
+export const removeStudentFromClass = async (req, res) => {
+  const { id, student_id } = req.params;
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('student_classes')
+      .delete()
+      .eq('class_id', id)
+      .eq('student_id', student_id);
+
+    if (error) return errorResponse(res, 'Không thể xóa học sinh khỏi lớp', error);
+    await logActivity('admin', req.user?.id, 'DELETE', 'student_classes', `Xóa học sinh ${student_id} khỏi lớp ${id}`);
+    return successResponse(res, null, 'Xóa học sinh khỏi lớp thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
   }
@@ -171,7 +227,7 @@ export const deleteSubject = async (req, res) => {
 export const getStudents = async (req, res) => {
   try {
     const { data, error } = await safeQuery(
-      () => supabaseAdmin.from('students').select('*, classes(class_id, class_name, grade_level)'),
+      () => supabaseAdmin.from('students').select('*, classes(class_id, class_name, grade_level), student_classes(classes(class_id, class_name, grade_level, subject, tuition_fee))'),
       () => supabaseAdmin.from('students').select('*')
     );
 
@@ -183,7 +239,7 @@ export const getStudents = async (req, res) => {
 };
 
 export const createStudent = async (req, res) => {
-  const { full_name, class_id, class_name, phone_number, parent_name, parent_phone } = req.body;
+  const { full_name, class_id, class_name, phone_number, parent_name, parent_phone, class_ids } = req.body;
 
   if (!full_name || !phone_number) {
     return errorResponse(res, 'Thiếu thông tin bắt buộc (Họ tên, SĐT)');
@@ -219,6 +275,18 @@ export const createStudent = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi thêm học sinh (SĐT có thể đã tồn tại)', error);
+
+    // Many-to-Many Assignment
+    if (Array.isArray(class_ids) && class_ids.length > 0 && data.student_id) {
+      const inserts = class_ids.map(cid => ({
+        student_id: data.student_id,
+        class_id: cid
+      }));
+      await supabaseAdmin.from('student_classes').insert(inserts);
+    } else if (targetClassId && data.student_id) {
+      await supabaseAdmin.from('student_classes').insert([{ student_id: data.student_id, class_id: targetClassId }]);
+    }
+
     await logActivity('admin', req.user?.id, 'CREATE', 'students', `Thêm học sinh mới: ${full_name}`);
     return successResponse(res, data, 'Thêm học sinh thành công');
   } catch (error) {
@@ -228,12 +296,12 @@ export const createStudent = async (req, res) => {
 
 export const updateStudent = async (req, res) => {
   const { id } = req.params;
-  const { full_name, class_id, class_name, phone_number, parent_name, parent_phone } = req.body;
+  const { full_name, class_id, class_name, phone_number, parent_name, parent_phone, class_ids } = req.body;
 
   try {
     const updateObj = { full_name, phone_number, parent_name, parent_phone };
     if (class_id) updateObj.class_id = class_id;
-    if (class_name) updateObj.class_name = class_name;
+    if (class_name !== undefined) updateObj.class_name = class_name;
 
     const { data, error } = await supabaseAdmin
       .from('students')
@@ -243,6 +311,21 @@ export const updateStudent = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Không thể cập nhật thông tin học sinh', error);
+    
+    // Many-to-Many Assignment Update
+    if (Array.isArray(class_ids)) {
+      // Delete existing
+      await supabaseAdmin.from('student_classes').delete().eq('student_id', id);
+      // Insert new
+      if (class_ids.length > 0) {
+        const inserts = class_ids.map(cid => ({
+          student_id: id,
+          class_id: cid
+        }));
+        await supabaseAdmin.from('student_classes').insert(inserts);
+      }
+    }
+
     await logActivity('admin', req.user?.id, 'UPDATE', 'students', `Cập nhật thông tin học sinh: ${full_name}`);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {

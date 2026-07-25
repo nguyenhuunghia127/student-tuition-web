@@ -367,6 +367,13 @@ export const submitAssignment = async (req, res) => {
     const { data: student } = await supabaseAdmin.from('students').select('full_name').eq('student_id', student_id).maybeSingle();
     await logActivity('student', student_id, 'UPDATE', 'assignment_submissions', `${student?.full_name || 'Học sinh'} nộp bài tập: ${assignment.title}`);
 
+    await supabaseAdmin.from('notifications').insert({
+      title: 'Học sinh nộp bài tập',
+      message: `Học sinh ${student?.full_name || 'Không rõ'} đã nộp bài tập "${assignment.title}".`,
+      target_type: 'admin',
+      target_id: ''
+    });
+
     return successResponse(res, submission, 'Nộp bài tập thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống nộp bài', error, 500);
@@ -405,6 +412,13 @@ export const payTuition = async (req, res) => {
 
     const { data: student } = await supabaseAdmin.from('students').select('full_name').eq('student_id', student_id).maybeSingle();
     await logActivity('student', student_id, 'PAYMENT', 'tuition_fees', `${student?.full_name || 'Học sinh'} đã đóng học phí số tiền ${Number(amount).toLocaleString('vi-VN')} VND`);
+
+    await supabaseAdmin.from('notifications').insert({
+      title: 'Thanh toán học phí',
+      message: `Phụ huynh/Học sinh ${student?.full_name || 'Không rõ'} đã thanh toán thành công số tiền ${Number(amount).toLocaleString('vi-VN')} đ.`,
+      target_type: 'admin',
+      target_id: ''
+    });
 
     return successResponse(res, payment, 'Thanh toán học phí thành công');
   } catch (error) {

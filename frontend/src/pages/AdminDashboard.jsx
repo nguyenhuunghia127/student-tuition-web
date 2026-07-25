@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Search, BookOpen, Calendar, DollarSign, Award, Bell, 
   LogOut, Upload, CheckCircle2, AlertTriangle, Clock, 
   CreditCard, ExternalLink, Shield, User, Loader2, RefreshCw,
-  Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight
+  Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight, LayoutGrid
 } from 'lucide-react'
 import { API_URL } from '../config.js'
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
     totalSubmissions: 0,
     averageGPA: 0
   })
+  const [classes, setClasses] = useState([])
   const [students, setStudents] = useState([])
   const [tuitionFees, setTuitionFees] = useState([])
   const [grades, setGrades] = useState([])
@@ -39,10 +41,13 @@ export default function AdminDashboard() {
   const [assignments, setAssignments] = useState([])
   const [submissions, setSubmissions] = useState([])
   const [notifications, setNotifications] = useState([])
+  const [notifTab, setNotifTab] = useState('inbox')
   const [gradeSettings, setGradeSettings] = useState([])
   const [gradeAppeals, setGradeAppeals] = useState([])
 
-  const [studentForm, setStudentForm] = useState({ id: '', full_name: '', class_name: '', phone_number: '', parent_name: '', parent_phone: '', status: 'active', enrolled_subjects: [] })
+  const [studentForm, setStudentForm] = useState({ id: '', full_name: '', class_name: '', phone_number: '', parent_name: '', parent_phone: '', status: 'active', enrolled_subjects: [], class_ids: [] })
+  const [classForm, setClassForm] = useState({ class_id: '', class_name: '', grade_level: '', academic_year: '', subject: '', tuition_fee: '' })
+  const [showClassModal, setShowClassModal] = useState(false)
   const [selectedStudents, setSelectedStudents] = useState([])
   const [showStudentModal, setShowStudentModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -181,6 +186,7 @@ export default function AdminDashboard() {
     try {
       await Promise.all([
         fetchStats(),
+        fetchClasses(),
         fetchStudents(),
         fetchTuition(),
         fetchPaymentHistory(),
@@ -232,6 +238,82 @@ export default function AdminDashboard() {
     }
   }
 
+  const [alertFilter, setAlertFilter] = useState('all');
+  
+  const alerts = useMemo(() => {
+    const generatedAlerts = [];
+    
+    // 1. Tuition Alerts
+    tuitionFees.forEach(fee => {
+      if (fee.status === 'unpaid' || fee.status === 'partial') {
+        const isLate = new Date(fee.due_date) < new Date();
+        if (isLate) {
+          generatedAlerts.push({
+            id: `tuition-${fee.fee_id}`,
+            type: 'tuition',
+            severity: 'high',
+            title: 'Quá hạn học phí',
+            message: `Học sinh ${fee.full_name || 'Không rõ'} chưa thanh toán đủ học phí. Số tiền còn thiếu: ${(fee.amount - (fee.paid_amount || 0)).toLocaleString('vi-VN')} đ`,
+            date: fee.due_date,
+            action: 'Xem học phí',
+            targetTab: 'tuition',
+            icon: DollarSign
+          });
+        }
+      }
+    });
+
+    // 2. Grade Alerts (Average GPA < 5.0)
+    const studentGrades = {};
+    grades.forEach(g => {
+      if (!studentGrades[g.student_id]) studentGrades[g.student_id] = { total: 0, count: 0, name: g.full_name };
+      studentGrades[g.student_id].total += parseFloat(g.score);
+      studentGrades[g.student_id].count += 1;
+    });
+    
+    Object.keys(studentGrades).forEach(studentId => {
+      const avg = studentGrades[studentId].total / studentGrades[studentId].count;
+      if (avg < 5.0) {
+        generatedAlerts.push({
+          id: `grade-${studentId}`,
+          type: 'academic',
+          severity: 'medium',
+          title: 'Kết quả học tập thấp',
+          message: `Học sinh ${studentGrades[studentId].name} có GPA hiện tại là ${avg.toFixed(1)}, dưới mức tiêu chuẩn (5.0).`,
+          date: new Date().toISOString(),
+          action: 'Xem bảng điểm',
+          targetTab: 'grades',
+          icon: Award
+        });
+      }
+    });
+
+    // 3. Assignment Alerts (Pending grading)
+    assignments.forEach(a => {
+      if (a.pending_grading > 0) {
+        generatedAlerts.push({
+          id: `assign-${a.assignment_id}`,
+          type: 'assignment',
+          severity: 'low',
+          title: 'Bài tập chờ chấm',
+          message: `Bài tập "${a.title}" có ${a.pending_grading} bài nộp cần được chấm điểm.`,
+          date: a.due_date || new Date().toISOString(),
+          action: 'Chấm điểm ngay',
+          targetTab: 'assignments',
+          icon: BookOpen
+        });
+      }
+    });
+
+    return generatedAlerts.sort((a, b) => {
+      const severityScore = { high: 3, medium: 2, low: 1 };
+      if (severityScore[a.severity] !== severityScore[b.severity]) {
+        return severityScore[b.severity] - severityScore[a.severity];
+      }
+      return new Date(b.date) - new Date(a.date);
+    });
+  }, [tuitionFees, grades, assignments]);
+
   const fetchStats = async () => {
     try {
       const res = await fetch(`${API_URL}/api/admin/stats`)
@@ -242,6 +324,12 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Lỗi fetchStats:', err)
     }
+  }
+
+  const fetchClasses = async () => {
+    const res = await fetch(`${API_URL}/api/admin/classes`)
+    const data = await res.json()
+    if (data.success) setClasses(data.data)
   }
 
   const fetchStudents = async () => {
@@ -946,155 +1034,263 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#080b12] text-slate-700 dark:text-[#c5c6c7] flex flex-col md:flex-row transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-100 dark:bg-[#080b12] text-slate-700 dark:text-[#c5c6c7] flex flex-col md:flex-row transition-colors duration-500 relative overflow-hidden">
       
       {/* Animated Mesh Gradient Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[100px] animate-blob"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/10 blur-[100px] animate-blob animation-delay-2000"></div>
-        <div className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full bg-emerald-500/10 blur-[100px] animate-blob animation-delay-4000"></div>
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden dark:mesh-bg mesh-bg-light transition-all duration-700">
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/20 blur-[100px]"
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/20 blur-[100px]"
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full bg-indigo-500/20 blur-[100px]"
+        />
       </div>
 
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between bg-white dark:bg-[#1f2833]/90 border-b border-slate-200 dark:border-slate-800 p-4 sticky top-0 z-30 shadow-sm">
+      <div className="md:hidden flex items-center justify-between glass-panel border-b border-slate-200/50 dark:border-white/5 p-4 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+          <div className="p-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30">
             <Shield className="w-5 h-5" />
           </div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Quản Trị Viên</h2>
         </div>
-        <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300">
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-md rounded-lg text-slate-600 dark:text-slate-300">
           <Menu className="w-5 h-5" />
         </button>
       </div>
 
       {/* Overlay for Mobile Sidebar */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* SIDEBAR (Docked Glassmorphism) */}
-      <aside className={`fixed inset-y-0 right-0 z-50 w-64 bg-white/70 dark:bg-[#131b26]/70 backdrop-blur-xl border-l border-slate-200/50 dark:border-slate-800/50 p-6 flex flex-col gap-6 h-full overflow-y-auto transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:relative md:right-auto md:border-r md:border-l-0 md:translate-x-0 shrink-0 md:min-h-screen`}>
+      {/* SIDEBAR (Floating Glassmorphism) */}
+      <motion.aside 
+        initial={false}
+        animate={{ x: isSidebarOpen ? 0 : (window.innerWidth < 768 ? '100%' : 0) }}
+        transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+        className={`fixed inset-y-0 right-0 z-50 w-72 md:w-64 glass-panel m-0 md:m-4 md:rounded-3xl p-6 flex flex-col gap-6 h-full md:h-[calc(100vh-32px)] overflow-y-auto ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:relative md:right-auto md:translate-x-0 shrink-0 custom-scrollbar`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-650 dark:text-purple-400 ring-1 ring-purple-500/20">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Quản Trị Viên</h2>
-              <p className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">Bảng Điều Khiển</p>
+              <h2 className="text-[15px] font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 tracking-wider">Admin Portal</h2>
+              <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest">Dashboard</p>
             </div>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded">
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white bg-slate-200/50 dark:bg-slate-800/50 rounded-lg backdrop-blur-md">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <nav className="flex flex-col gap-1.5 flex-grow">
+        <nav className="flex flex-col gap-2 flex-grow mt-4">
           {[
-            { id: 'stats', label: 'Tổng Quan & KPIs', icon: Award },
-            { id: 'students', label: 'Quản Lý Học Sinh', icon: User },
-            { id: 'tuition', label: 'Quản Lý Học Phí', icon: DollarSign },
-            { id: 'grades', label: 'Quản Lý Điểm Số', icon: Award },
-            { id: 'schedules', label: 'Thời Khóa Biểu', icon: Calendar },
-            { id: 'assignments', label: 'Bài Tập & Chấm Điểm', icon: BookOpen },
-            { id: 'documents', label: 'Kho Tài Liệu', icon: FileText },
-            { id: 'notifications', label: 'Phát Thông Báo', icon: Bell }
-          ].map(menu => {
+            { id: 'stats', label: 'Tổng Quan', icon: Award },
+            { id: 'alerts', label: 'Cảnh Báo', icon: AlertTriangle },
+            { id: 'classes', label: 'Lớp Học', icon: LayoutGrid },
+            { id: 'students', label: 'Học Sinh', icon: User },
+            { id: 'tuition', label: 'Học Phí', icon: DollarSign },
+            { id: 'grades', label: 'Điểm Số', icon: Award },
+            { id: 'schedules', label: 'Lịch Học', icon: Calendar },
+            { id: 'assignments', label: 'Bài Tập', icon: BookOpen },
+            { id: 'documents', label: 'Tài Liệu', icon: FileText },
+            { id: 'notifications', label: 'Thông Báo', icon: Bell }
+          ].map((menu, idx) => {
             const Icon = menu.icon
             const isAct = activeSubTab === menu.id
             return (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
                 key={menu.id}
                 onClick={() => {
                   setActiveSubTab(menu.id)
                   setSelectedAssignForGrading(null)
+                  if(window.innerWidth < 768) setIsSidebarOpen(false)
                 }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs transition-all text-left cursor-pointer ${
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all text-left cursor-pointer overflow-hidden ${
                   isAct 
-                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/15' 
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/40'
+                    ? 'text-white shadow-lg shadow-indigo-500/25 ring-1 ring-white/20' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-500/5 dark:hover:bg-white/5'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                <span>{menu.label}</span>
-              </button>
+                {isAct && (
+                  <motion.div 
+                    layoutId="sidebar-active"
+                    className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-100"
+                    initial={false}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <Icon className={`w-4 h-4 relative z-10 ${isAct ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+                <span className="relative z-10">{menu.label}</span>
+              </motion.button>
             )
           })}
         </nav>
 
-        <div className="pt-6 border-t border-slate-200 dark:border-slate-800 text-center space-y-3">
-          <div className="flex justify-center">
+        <div className="pt-6 border-t border-slate-200/50 dark:border-white/10 text-center space-y-4">
+          <div className="flex justify-center p-1 bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl w-max mx-auto ring-1 ring-white/10">
             <ThemeToggle />
           </div>
-          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate">{adminUser?.email}</div>
-          <button
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate px-2">{adminUser?.email}</div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={handleAdminLogout}
-            className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gradient-to-r from-rose-500/10 to-red-500/10 hover:from-rose-500/20 hover:to-red-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 ring-1 ring-rose-500/20"
           >
             <LogOut className="w-4 h-4" />
             <span>Đăng xuất</span>
-          </button>
+          </motion.button>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative z-10 h-screen overflow-y-auto p-4 md:p-8 transition-colors duration-300 flex flex-col">
+      <main className="flex-1 relative z-10 h-screen overflow-y-auto p-4 md:p-8 transition-colors duration-300 flex flex-col custom-scrollbar">
         
         {/* Header removed as requested */}
 
         {activeSubTab === 'documents' && <AdminDocuments adminUser={adminUser} fetchStats={fetchStats} />}
-        {/* 5.1 STATS (KPI DASHBOARD) */}
+        {/* 5.1 STATS (BENTO GRID DASHBOARD) */}
         {activeSubTab === 'stats' && (
-          <div className="space-y-8 animate-fade-in">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Tổng Quan Học Đường</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Nắm bắt nhanh các chỉ số quan trọng của trung tâm</p>
+                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 tracking-tight">Tổng Quan Hệ Thống</h2>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Nắm bắt nhanh các chỉ số quan trọng hôm nay</p>
               </div>
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={fetchStats} 
+                className="p-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </motion.button>
             </div>
             
-            {/* KPI Cards Grid - Clean */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
-              {[
-                { label: 'Học Sinh', val: stats?.totalStudents || 0, desc: 'Đang theo học', icon: User, color: 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' },
-                { label: 'GPA', val: stats?.averageGPA || 0, desc: 'Trung bình toàn trường', icon: Award, color: 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400' },
-                { label: 'Doanh Thu', val: `${(stats?.paidAmount || 0) >= 1000000 ? ((stats?.paidAmount || 0) / 1000000).toFixed(1) + 'M' : (stats?.paidAmount || 0).toLocaleString('vi-VN')} đ`, desc: `Đã thu ${stats?.tuitionRate || 0}%`, icon: DollarSign, color: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-                { label: 'Nợ Phí', val: stats?.unpaidFeesCount || 0, desc: 'Hóa đơn chưa thanh toán', icon: CreditCard, color: 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400' },
-                { label: 'Chờ Chấm', val: stats?.pendingGrading || 0, desc: 'Bài nộp cần đánh giá', icon: BookOpen, color: 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500' },
-                { label: 'Tỷ Lệ Chấm', val: `${(stats?.totalSubmissions || 0) > 0 ? (((stats?.gradedSubmissions || 0) / stats.totalSubmissions) * 100).toFixed(0) : 0}%`, desc: `${stats?.gradedSubmissions || 0}/${stats?.totalSubmissions || 0} bài`, icon: CheckCircle2, color: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' }
-              ].map((kpi, idx) => {
-                const Icon = kpi.icon
-                return (
-                  <div key={idx} className="relative overflow-hidden rounded-2xl p-5 bg-white dark:bg-[#1a222c] border border-slate-200 dark:border-slate-800 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 group">
-                    <div className="relative z-10 flex flex-col h-full justify-between gap-4">
-                      <div className="flex justify-between items-start">
-                        <div className={`p-2.5 rounded-2xl ${kpi.color}`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{kpi.val}</p>
-                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">{kpi.label}</p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">{kpi.desc}</p>
-                      </div>
-                    </div>
+            {/* BENTO GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 auto-rows-[minmax(140px,auto)]">
+              {/* Highlight Card 1 - Students */}
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="lg:col-span-2 glass-card glow-card rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-cyan-500/20 blur-2xl pointer-events-none"></div>
+                <div className="flex justify-between items-start z-10">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/30 ring-1 ring-white/20">
+                    <User className="w-6 h-6" />
                   </div>
-                )
-              })}
+                  <span className="px-3 py-1 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 text-xs font-bold rounded-full">Tổng Học Sinh</span>
+                </div>
+                <div className="z-10 mt-4">
+                  <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter">{stats?.totalStudents || 0}</p>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-2">Học viên đang theo học tại trung tâm</p>
+                </div>
+              </motion.div>
+
+              {/* Highlight Card 2 - Revenue */}
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="lg:col-span-2 glass-card glow-card rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden"
+              >
+                <div className="absolute bottom-0 right-0 -mr-8 -mb-8 w-32 h-32 rounded-full bg-emerald-500/20 blur-2xl pointer-events-none"></div>
+                <div className="flex justify-between items-start z-10">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/20">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full">Tỷ lệ thu: {stats?.tuitionRate || 0}%</span>
+                </div>
+                <div className="z-10 mt-4">
+                  <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-400 dark:from-emerald-400 dark:to-teal-200">
+                    {`${(stats?.paidAmount || 0) >= 1000000 ? ((stats?.paidAmount || 0) / 1000000).toFixed(1) + 'M' : (stats?.paidAmount || 0).toLocaleString('vi-VN')} đ`}
+                  </p>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-2">Tổng doanh thu đã thu được</p>
+                </div>
+              </motion.div>
+
+              {/* Small Card 1 - GPA */}
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 flex flex-col justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-1 ring-purple-500/20">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">GPA Trung Bình</span>
+                </div>
+                <p className="text-3xl font-black text-slate-900 dark:text-white">{stats?.averageGPA || 0}</p>
+              </motion.div>
+
+              {/* Small Card 2 - Unpaid Fees */}
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 flex flex-col justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Nợ Học Phí</span>
+                </div>
+                <p className="text-3xl font-black text-slate-900 dark:text-white">{stats?.unpaidFeesCount || 0}</p>
+              </motion.div>
+
+              {/* Small Card 3 - Pending Grading */}
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 flex flex-col justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-500 ring-1 ring-amber-500/20">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Chờ Chấm Điểm</span>
+                </div>
+                <p className="text-3xl font-black text-slate-900 dark:text-white">{stats?.pendingGrading || 0}</p>
+              </motion.div>
+
+              {/* Small Card 4 - Grading Rate */}
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 flex flex-col justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/20">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Tỷ Lệ Chấm</span>
+                </div>
+                <p className="text-3xl font-black text-slate-900 dark:text-white">
+                  {`${(stats?.totalSubmissions || 0) > 0 ? (((stats?.gradedSubmissions || 0) / stats.totalSubmissions) * 100).toFixed(0) : 0}%`}
+                </p>
+              </motion.div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               
               {/* Thống kê Sĩ số theo Lớp (Donut Chart) */}
-              <div className="lg:col-span-1 relative overflow-hidden rounded-2xl bg-white dark:bg-[#1a222c] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+              <motion.div whileHover={{ scale: 1.01 }} className="lg:col-span-1 glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col">
+                <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-purple-500/10 blur-2xl pointer-events-none"></div>
                 <div className="relative z-10 h-full flex flex-col">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                      <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>
                       Sĩ số Học sinh theo Lớp
                     </h3>
                   </div>
@@ -1130,14 +1326,13 @@ export default function AdminDashboard() {
                     return (
                       <div className="flex-1 flex flex-col items-center justify-center gap-6">
                         <div className="relative w-40 h-40 group">
-                          <svg viewBox="-1 -1 2 2" className="w-full h-full transform -rotate-90">
-                            {data.map(slice => {
+                          <svg viewBox="-1 -1 2 2" className="w-full h-full transform -rotate-90 filter drop-shadow-md">
+                            {data.map((slice, idx) => {
                               const percent = slice.value / total;
                               const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
                               cumulativePercent += percent;
                               const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
                               const largeArcFlag = percent > 0.5 ? 1 : 0;
-                              // For full circle, special case
                               const pathData = percent === 1 
                                 ? `M 1 0 A 1 1 0 1 1 1 -0.001` 
                                 : `M ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`;
@@ -1146,18 +1341,26 @@ export default function AdminDashboard() {
                               const [midX, midY] = getCoordinatesForPercent(midPercent);
 
                               return (
-                                <g key={slice.label} className="transition-all duration-500 hover:scale-105 origin-center cursor-pointer">
+                                <motion.g 
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ delay: 0.1 * idx, type: "spring" }}
+                                  key={slice.label} 
+                                  className="transition-all duration-500 hover:scale-105 origin-center cursor-pointer"
+                                >
                                   <path
                                     d={pathData}
                                     fill="none"
                                     stroke={slice.color}
                                     strokeWidth="0.4"
+                                    strokeLinecap="round"
                                   />
                                   {percent > 0.05 && (
                                     <text
                                       x={midX}
                                       y={midY}
-                                      fill="white"
+                                      fill="currentColor"
+                                      className="text-slate-700 dark:text-white"
                                       fontSize="0.15"
                                       fontWeight="bold"
                                       textAnchor="middle"
@@ -1167,22 +1370,22 @@ export default function AdminDashboard() {
                                       {slice.value}
                                     </text>
                                   )}
-                                </g>
+                                </motion.g>
                               );
                             })}
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-2xl font-black text-slate-900 dark:text-white">{total}</span>
-                            <span className="text-[9px] text-slate-500 uppercase font-bold">Học sinh</span>
+                            <span className="text-3xl font-black text-slate-900 dark:text-white">{total}</span>
+                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Học sinh</span>
                           </div>
                         </div>
                         
-                        <div className="w-full grid grid-cols-2 gap-3">
+                        <div className="w-full grid grid-cols-2 gap-3 mt-2">
                           {data.map(d => (
                             <div key={d.label} className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div>
+                              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: d.color }}></div>
                               <div className="flex-1 flex justify-between items-center text-xs">
-                                <span className="text-slate-600 dark:text-slate-400">{d.label}</span>
+                                <span className="text-slate-600 dark:text-slate-400 font-medium truncate pr-2">{d.label}</span>
                                 <span className="font-bold text-slate-900 dark:text-white">{(d.value / total * 100).toFixed(0)}%</span>
                               </div>
                             </div>
@@ -1192,53 +1395,56 @@ export default function AdminDashboard() {
                     )
                   })()}
                 </div>
-              </div>
+              </motion.div>
 
               {/* Tình trạng bài tập (Modern Bar Chart) */}
-              <div className="lg:col-span-2 relative overflow-hidden rounded-2xl bg-white dark:bg-[#1a222c] border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col">
-                <div className="flex items-center justify-between mb-8">
+              <motion.div whileHover={{ scale: 1.01 }} className="lg:col-span-2 glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col">
+                <div className="absolute bottom-0 right-0 w-48 h-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none"></div>
+                <div className="flex items-center justify-between mb-8 z-10">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
+                    <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]"></div>
                     Tình Trạng Nộp Bài & Chấm Điểm
                   </h3>
-                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] bg-white/50 dark:bg-slate-800/50 backdrop-blur-md text-slate-600 dark:text-slate-300 font-bold px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700/50">
                     {assignments.length} Bài Tập
                   </span>
                 </div>
                 
-                <div className="flex-1 flex items-end justify-around gap-4 pt-4 pb-2">
+                <div className="flex-1 flex items-end justify-around gap-4 pt-4 pb-2 z-10">
                   {[
-                    { label: 'Đã Nộp', value: stats?.totalSubmissions || 0, max: (stats?.totalSubmissions || 0) + 2, color: 'from-cyan-400 to-blue-500', shadow: 'shadow-cyan-500/30' },
-                    { label: 'Đã Chấm', value: stats?.gradedSubmissions || 0, max: (stats?.totalSubmissions || 0) + 2, color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/30' },
-                    { label: 'Nộp Trễ', value: stats?.lateSubmissions || 0, max: (stats?.totalSubmissions || 0) + 2, color: 'from-rose-400 to-red-500', shadow: 'shadow-rose-500/30' }
+                    { label: 'Đã Nộp', value: stats?.totalSubmissions || 0, max: (stats?.totalSubmissions || 0) + 2, color: 'from-cyan-400 to-blue-500', shadow: 'shadow-cyan-500/40' },
+                    { label: 'Đã Chấm', value: stats?.gradedSubmissions || 0, max: (stats?.totalSubmissions || 0) + 2, color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/40' },
+                    { label: 'Nộp Trễ', value: stats?.lateSubmissions || 0, max: (stats?.totalSubmissions || 0) + 2, color: 'from-rose-400 to-red-500', shadow: 'shadow-rose-500/40' }
                   ].map((bar, i) => (
                     <div key={i} className="flex flex-col items-center gap-3 w-24 group cursor-pointer">
-                      <span className="text-lg font-black text-slate-700 dark:text-slate-200 transition-all duration-300 group-hover:-translate-y-1">
+                      <span className="text-xl font-black text-slate-700 dark:text-slate-200 transition-all duration-300 group-hover:-translate-y-2 group-hover:text-cyan-500">
                         {bar.value}
                       </span>
-                      <div className="w-12 bg-slate-100 dark:bg-slate-800/50 rounded-2xl h-40 flex items-end justify-center p-1 relative overflow-hidden">
-                        <div 
-                          className={`w-full bg-gradient-to-t ${bar.color} rounded-xl relative transition-all duration-1000 ease-out group-hover:scale-x-105 ${bar.shadow}`} 
-                          style={{ height: `${bar.max > 0 ? (bar.value / bar.max * 100) : 0}%` }}
+                      <div className="w-14 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-2xl h-48 flex items-end justify-center p-1.5 relative overflow-hidden border border-white/20 dark:border-white/5">
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: `${bar.max > 0 ? (bar.value / bar.max * 100) : 0}%` }}
+                          transition={{ duration: 1, delay: 0.2 * i, ease: "easeOut" }}
+                          className={`w-full bg-gradient-to-t ${bar.color} rounded-xl relative transition-all duration-300 group-hover:scale-x-105 shadow-lg ${bar.shadow}`} 
                         >
                           <div className="absolute inset-0 bg-white/20 w-full rounded-xl -translate-y-full group-hover:translate-y-full transition-transform duration-1000"></div>
-                        </div>
+                        </motion.div>
                       </div>
-                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{bar.label}</span>
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{bar.label}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               {/* Cân đối Học Phí (Stacked Modern Bar) */}
-              <div className="relative overflow-hidden rounded-3xl bg-white/70 dark:bg-[#1a222c]/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 p-6 shadow-xl shadow-slate-200/20 dark:shadow-none flex flex-col justify-between">
-                <div className="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+              <motion.div whileHover={{ scale: 1.01 }} className="glass-card glow-card rounded-3xl p-6 relative flex flex-col justify-between overflow-hidden">
+                <div className="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
-                <div>
+                <div className="z-10">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-8 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
                     Dòng Tiền Học Phí
                   </h3>
                   
@@ -1249,47 +1455,47 @@ export default function AdminDashboard() {
                           <CheckCircle2 className="w-4 h-4" />
                           <span className="text-xs font-bold uppercase tracking-wider">Đã Thu</span>
                         </div>
-                        <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">${stats.paidAmount.toLocaleString('vi-VN')} đ</p>
+                        <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{stats.paidAmount.toLocaleString('vi-VN')} đ</p>
                       </div>
                       <div className="space-y-1 text-right">
                         <div className="flex items-center justify-end gap-2 text-rose-500">
                           <span className="text-xs font-bold uppercase tracking-wider">Còn Nợ</span>
                           <CreditCard className="w-4 h-4" />
                         </div>
-                        <p className="text-xl font-bold text-slate-700 dark:text-slate-300 tracking-tight">${stats.unpaidAmount.toLocaleString('vi-VN')} đ</p>
+                        <p className="text-2xl font-bold text-slate-600 dark:text-slate-400 tracking-tight">{stats.unpaidAmount.toLocaleString('vi-VN')} đ</p>
                       </div>
                     </div>
                     
-                    <div className="relative">
-                      <div className="w-full bg-slate-100 dark:bg-slate-800/80 h-6 rounded-full overflow-hidden flex shadow-inner text-[10px] font-bold text-white">
-                        <div 
-                          className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full relative transition-all duration-1000 shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center justify-center overflow-hidden" 
-                          style={{ width: `${stats.tuitionRate}%` }}
+                    <div className="relative pt-2">
+                      <div className="w-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-white/20 dark:border-white/5 h-8 rounded-2xl overflow-hidden flex shadow-inner text-[11px] font-bold text-white">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${stats.tuitionRate}%` }}
+                          transition={{ duration: 1.5, ease: "easeOut" }}
+                          className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full relative shadow-[0_0_15px_rgba(16,185,129,0.6)] flex items-center justify-center overflow-hidden" 
                         >
                           <span className="relative z-10 px-2 drop-shadow-md whitespace-nowrap">{stats.tuitionRate}% Đã thu</span>
                           <div className="absolute inset-0 w-full h-full bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%,transparent_100%)] bg-[length:20px_20px] animate-[shimmer_2s_linear_infinite]"></div>
-                        </div>
-                        <div 
-                          className="bg-gradient-to-r from-rose-400 to-rose-500 h-full relative transition-all duration-1000 opacity-80 flex items-center justify-center overflow-hidden" 
-                          style={{ width: `${100 - stats.tuitionRate}%` }}
+                        </motion.div>
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${100 - stats.tuitionRate}%` }}
+                          transition={{ duration: 1.5, ease: "easeOut" }}
+                          className="bg-gradient-to-r from-rose-400 to-red-500 h-full relative opacity-90 flex items-center justify-center overflow-hidden" 
                         >
-                          <span className="px-2 drop-shadow-md whitespace-nowrap">{(100 - stats.tuitionRate).toFixed(1)}% Còn nợ</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between mt-3 text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                        <span>{stats.tuitionRate}% Tỷ lệ hoàn thành</span>
-                        <span>{(100 - stats.tuitionRate).toFixed(1)}% Chưa thu</span>
+                          <span className="px-2 drop-shadow-md whitespace-nowrap">{(100 - stats.tuitionRate).toFixed(1)}% Nợ</span>
+                        </motion.div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Lịch sử Thông báo gửi đi (Timeline style) */}
-              <div className="relative overflow-hidden rounded-3xl bg-white/70 dark:bg-[#1a222c]/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 p-6 shadow-xl shadow-slate-200/20 dark:shadow-none flex flex-col h-[380px]">
+              <motion.div whileHover={{ scale: 1.01 }} className="glass-card glow-card rounded-3xl p-6 relative flex flex-col h-[400px] overflow-hidden">
                 <div className="flex items-center justify-between mb-6 z-10">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                    <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
                     Hoạt Động Mới Nhất
                   </h3>
                   <span className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1 rounded-full border border-indigo-500/20">
@@ -1303,8 +1509,8 @@ export default function AdminDashboard() {
                     <p className="text-xs font-medium">Chưa có hoạt động nào</p>
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto pr-2 relative scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-                    <div className="absolute left-3 top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-700"></div>
+                  <div className="flex-1 overflow-y-auto pr-2 relative custom-scrollbar z-10">
+                    <div className="absolute left-3 top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-700/50"></div>
                     <div className="space-y-6 pb-2">
                       {notifications.slice(0, 15).map((notif, idx) => {
                         const isTargeted = notif.target_type === 'student' || notif.target_type === 'targeted' || (notif.target_id && notif.target_id.startsWith('student:'))
@@ -1312,12 +1518,18 @@ export default function AdminDashboard() {
                         const isClass = notif.target_type === 'class' || notif.target_type === 'mixed'
                         const colorClass = isTargeted ? 'bg-rose-500' : isClass ? 'bg-amber-500' : 'bg-indigo-500'
                         return (
-                          <div key={notif.notification_id} className="relative pl-10 group">
-                            <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full flex items-center justify-center bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 shadow-sm z-10 group-hover:scale-110 transition-transform`}>
+                          <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            key={notif.notification_id} 
+                            className="relative pl-10 group"
+                          >
+                            <div className={`absolute left-0 top-2 w-6 h-6 rounded-full flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm z-10 group-hover:scale-110 transition-transform`}>
                               <div className={`w-2 h-2 rounded-full ${colorClass} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} style={{ shadowColor: isTargeted ? '#f43f5e' : '#6366f1' }}></div>
                             </div>
                             
-                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                            <div className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-2xl p-4 border border-white/20 dark:border-white/5 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors shadow-sm">
                               <div className="flex justify-between items-start gap-2 mb-1.5">
                                 <div className="flex items-center gap-2">
                                   <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">{notif.title}</h4>
@@ -1325,7 +1537,7 @@ export default function AdminDashboard() {
                                     {isTargeted ? 'Cá nhân' : isClass ? 'Lớp học' : 'Toàn trường'}
                                   </span>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-800">
+                                <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">
                                   {new Date(notif.created_at).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
@@ -1336,29 +1548,318 @@ export default function AdminDashboard() {
                                   Đến: <span className="font-semibold text-slate-500 dark:text-slate-400">{notif.target_id}</span>
                                 </div>
                               )}
-                              
-                              {isTargeted && notif.students && (
-                                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2">
-                                  <div className="w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
-                                    <User className="w-3 h-3" />
-                                  </div>
-                                  <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400">
-                                    Đã gửi: {notif.students.full_name}
-                                  </span>
-                                </div>
-                              )}
                             </div>
-                          </div>
+                          </motion.div>
                         )
                       })}
                     </div>
                   </div>
                 )}
-              </div>
+              </motion.div>
 
             </div>
-          </div>
+          </motion.div>
         )}
+
+        {/* 5.1.2 ALERTS (BENTO GRID STYLE) */}
+        {activeSubTab === 'alerts' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500 tracking-tight flex items-center gap-3">
+                  <AlertTriangle className="w-8 h-8 text-rose-500" />
+                  Trung Tâm Cảnh Báo
+                </h2>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Quản lý và xử lý nhanh các vấn đề tự động phát hiện</p>
+              </div>
+              
+              <div className="flex gap-2">
+                {['all', 'tuition', 'academic', 'assignment'].map(filter => (
+                  <button 
+                    key={filter}
+                    onClick={() => setAlertFilter(filter)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${alertFilter === filter ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900 shadow-md' : 'bg-white dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  >
+                    {filter === 'all' ? 'Tất cả' : filter === 'tuition' ? 'Học phí' : filter === 'academic' ? 'Học tập' : 'Bài tập'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Alert Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="flex items-center justify-between z-10 mb-4">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-400 to-red-600 text-white shadow-lg shadow-rose-500/30 ring-1 ring-white/20">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Nợ Học Phí</span>
+                </div>
+                <div className="z-10">
+                  <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {alerts.filter(a => a.type === 'tuition').length}
+                  </p>
+                </div>
+              </motion.div>
+              
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="flex items-center justify-between z-10 mb-4">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-lg shadow-amber-500/30 ring-1 ring-white/20">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-400">GPA Thấp</span>
+                </div>
+                <div className="z-10">
+                  <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {alerts.filter(a => a.type === 'academic').length}
+                  </p>
+                </div>
+              </motion.div>
+              
+              <motion.div whileHover={{ y: -5 }} className="glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="flex items-center justify-between z-10 mb-4">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-400 to-blue-600 text-white shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Chờ Chấm Điểm</span>
+                </div>
+                <div className="z-10">
+                  <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {alerts.filter(a => a.type === 'assignment').length}
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Alert List Bento Style */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {alerts.filter(a => alertFilter === 'all' || a.type === alertFilter).length === 0 ? (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="col-span-full flex flex-col items-center justify-center p-12 text-slate-400 dark:text-slate-500 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-3xl border border-white/20 dark:border-white/5"
+                  >
+                    <ShieldCheck className="w-16 h-16 mb-4 text-emerald-500 opacity-80" />
+                    <p className="text-lg font-bold text-slate-700 dark:text-slate-300">Tuyệt vời! Không có cảnh báo nào.</p>
+                    <p className="text-sm mt-1">Mọi thứ đều đang hoạt động tốt.</p>
+                  </motion.div>
+                ) : (
+                  alerts.filter(a => alertFilter === 'all' || a.type === alertFilter).map((alert, idx) => (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.3, delay: idx * 0.05 }}
+                      key={alert.id}
+                      className="glass-card glow-card rounded-3xl p-6 relative group overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl pointer-events-none ${
+                        alert.severity === 'high' ? 'bg-rose-500/20' : alert.severity === 'medium' ? 'bg-amber-500/20' : 'bg-indigo-500/20'
+                      }`}></div>
+                      
+                      <div className="z-10">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className={`p-2.5 rounded-2xl ring-1 ${
+                            alert.severity === 'high' 
+                              ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20' 
+                              : alert.severity === 'medium' 
+                                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 ring-amber-500/20' 
+                                : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20'
+                          }`}>
+                            <alert.icon className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white/50 dark:bg-slate-800/50 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700/50">
+                            {new Date(alert.date).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+                        
+                        <h4 className="text-lg font-black text-slate-900 dark:text-white mb-2">{alert.title}</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-6">{alert.message}</p>
+                      </div>
+
+                      <div className="z-10 mt-auto flex gap-3">
+                        <motion.button 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setActiveSubTab(alert.targetTab)}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-white shadow-lg ${
+                            alert.severity === 'high' 
+                              ? 'bg-gradient-to-r from-rose-500 to-red-600 shadow-rose-500/30' 
+                              : alert.severity === 'medium' 
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 shadow-amber-500/30' 
+                                : 'bg-gradient-to-r from-indigo-500 to-blue-600 shadow-indigo-500/30'
+                          }`}
+                        >
+                          {alert.action}
+                        </motion.button>
+                        
+                        {alert.type !== 'assignment' && (
+                          <motion.button 
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setActiveSubTab('notifications')
+                            }}
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                            title="Gửi thông báo nhắc nhở"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </motion.button>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+
+        {/* 5.1.5 CLASSES */}
+        {activeSubTab === 'classes' && (() => {
+          return (
+            <div className="space-y-6 animate-fade-in pb-10">
+              <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <LayoutGrid className="text-indigo-600 dark:text-indigo-400" />
+                  Quản Lý Lớp Học
+                </h2>
+                <button
+                  onClick={() => {
+                    setClassForm({ class_id: '', class_name: '', grade_level: '', academic_year: '' })
+                    setShowClassModal(true)
+                  }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Thêm Lớp Mới
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(() => {
+                  const dbClassNames = classes.map(c => c.class_name);
+                  const studentClassNames = Array.from(new Set(students.map(s => s.classes?.class_name || s.class_name).filter(Boolean)));
+                  const allClassNames = Array.from(new Set([...dbClassNames, ...studentClassNames])).sort();
+                  
+                  const mergedClasses = allClassNames.map(name => {
+                    const dbClass = classes.find(c => c.class_name === name);
+                    if (dbClass) return dbClass;
+                    return { class_id: `temp_${name}`, class_name: name, grade_level: '', academic_year: '' };
+                  });
+
+                  if (mergedClasses.length === 0) {
+                    return <div className="col-span-full text-center py-10 text-slate-500">Chưa có lớp học nào. Hãy thêm lớp mới!</div>
+                  }
+
+                  return mergedClasses.map(c => {
+                    const classStudents = students.filter(s => 
+                      s.classes?.class_id === c.class_id || 
+                      s.class_name === c.class_name ||
+                      (s.student_classes && s.student_classes.some(sc => sc.classes?.class_id === c.class_id))
+                    )
+                    const isTemp = String(c.class_id).startsWith('temp_');
+                    return (
+                      <div key={c.class_id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 hover:shadow-md transition-shadow relative group flex flex-col h-full">
+                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => {
+                            setClassForm(c)
+                            setShowClassModal(true)
+                          }} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg" title={isTemp ? "Tạo lớp này" : "Chỉnh sửa"}>
+                            {isTemp ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                          </button>
+                          {!isTemp && (
+                            <button onClick={async () => {
+                              if (!confirm(`Bạn có chắc muốn xóa lớp ${c.class_name}?`)) return
+                              try {
+                                const res = await fetch(`${API_URL}/api/admin/classes/${c.class_id}`, {
+                              method: 'DELETE',
+                              headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_session')}` }
+                            })
+                            const data = await res.json()
+                            if (data.success) {
+                              alert('Xóa thành công')
+                              fetchClasses()
+                            } else alert(data.message)
+                          } catch (e) { alert('Lỗi xóa') }
+                        }} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                          {c.class_name.substring(0, 2)}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-800 dark:text-white text-lg">{c.class_name}</h3>
+                          <p className="text-sm text-slate-500">Khối: {c.grade_level || 'Chưa rõ'} | Năm học: {c.academic_year || '2024-2025'}</p>
+                          {(c.subject || c.tuition_fee) && (
+                            <p className="text-xs text-indigo-500 font-medium mt-1">
+                              {c.subject ? `Môn: ${c.subject}` : ''}
+                              {c.subject && c.tuition_fee ? ' • ' : ''}
+                              {c.tuition_fee ? `${Number(c.tuition_fee).toLocaleString('vi-VN')} đ` : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                            Sĩ số: <strong className="text-indigo-600 dark:text-indigo-400">{classStudents.length}</strong> học sinh
+                          </span>
+                        </div>
+                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1 text-sm custom-scrollbar">
+                          {classStudents.slice(0, 5).map(st => (
+                            <div key={st.student_id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              onClick={() => {
+                                setStudentProfile(st)
+                                setShowProfileModal(true)
+                              }}>
+                              <div className="flex items-center gap-2 truncate">
+                                <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
+                                  {st.full_name.charAt(0)}
+                                </div>
+                                <span className="font-medium text-slate-700 dark:text-slate-300 truncate">{st.full_name}</span>
+                              </div>
+                              <span className="text-slate-500 text-xs">{st.phone_number}</span>
+                            </div>
+                          ))}
+                          {classStudents.length > 5 && (
+                            <div 
+                              onClick={() => {
+                                setStudentClassFilter(c.class_name)
+                                setActiveSubTab('students')
+                              }}
+                              className="text-center text-xs text-indigo-600 dark:text-indigo-400 py-1 cursor-pointer hover:underline">
+                              Xem tất cả {classStudents.length} học sinh
+                            </div>
+                          )}
+                          {classStudents.length === 0 && (
+                            <div className="text-center text-slate-400 text-xs py-2 italic">Lớp chưa có học sinh nào</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+                })()}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* 5.2 STUDENTS */}
         {activeSubTab === 'students' && (() => {
           const filteredStudents = students.filter(s => {
@@ -1570,7 +2071,8 @@ export default function AdminDashboard() {
                               phone_number: st.phone_number,
                               parent_name: st.parent_name, parent_phone: st.parent_phone || '',
                               status: st.status || 'active',
-                              enrolled_subjects: st.enrolled_subjects || []
+                              enrolled_subjects: st.enrolled_subjects || [],
+                              class_ids: st.student_classes ? st.student_classes.map(sc => sc.classes?.class_id) : []
                             })
                             setShowStudentModal(true)
                           }}
@@ -2997,15 +3499,58 @@ export default function AdminDashboard() {
         {/* 5.7 NOTIFICATIONS */}
         {activeSubTab === 'notifications' && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-2xl font-black text-indigo-900 dark:text-indigo-100 flex items-center gap-3">
-                <span className="p-2 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/30">🔔</span>
-                Phát Thông Báo Hệ Thống
-              </h2>
-              <p className="text-indigo-700/80 dark:text-indigo-300 mt-2 text-sm">Gửi thông báo nhanh chóng đến học sinh hoặc theo lớp học.</p>
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-indigo-900 dark:text-indigo-100 flex items-center gap-3">
+                  <span className="p-2 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/30"><Bell className="w-6 h-6" /></span>
+                  Trung Tâm Thông Báo
+                </h2>
+                <p className="text-indigo-700/80 dark:text-indigo-300 mt-2 text-sm">Xem thông báo hệ thống hoặc gửi thông báo.</p>
+              </div>
+              <div className="flex gap-2 bg-white/50 dark:bg-slate-900/50 p-1 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
+                <button
+                  onClick={() => setNotifTab('inbox')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${notifTab === 'inbox' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'}`}
+                >
+                  Hộp thư
+                </button>
+                <button
+                  onClick={() => setNotifTab('send')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${notifTab === 'send' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'}`}
+                >
+                  Phát thông báo
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6">
+            {notifTab === 'inbox' && (
+              <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2"><Inbox className="w-5 h-5 text-indigo-500" /> Thông Báo Hệ Thống</h3>
+                <div className="space-y-4">
+                  {notifications.filter(n => n.target_type === 'admin' || n.target_type === 'system').length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 font-medium">Chưa có thông báo nào.</div>
+                  ) : (
+                    notifications.filter(n => n.target_type === 'admin' || n.target_type === 'system').map(notif => (
+                      <div key={notif.notification_id} className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all flex gap-4 shadow-sm hover:shadow-md">
+                        <div className="p-3 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 h-fit">
+                          <Bell className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <h4 className="font-bold text-slate-900 dark:text-white text-base">{notif.title}</h4>
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full whitespace-nowrap border border-slate-200 dark:border-slate-700/50">{new Date(notif.created_at).toLocaleString('vi-VN')}</span>
+                          </div>
+                          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{notif.message}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {notifTab === 'send' && (
+              <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-1">
                 <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl shadow-slate-200/50 dark:shadow-none backdrop-blur-xl">
                   <form onSubmit={handleSendNotification} className="space-y-6">
@@ -3215,6 +3760,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
 
