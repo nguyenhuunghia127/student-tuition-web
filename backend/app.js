@@ -42,7 +42,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Giới hạn dung lượng Payload chống tấn công từ chối dịch vụ (Billion laughs, v.v.)
-app.use(express.json({ limit: '50mb' })); // Tăng lên 50MB vì có upload file base64 nếu cần, hoặc để mặc định
+app.use(express.json({ limit: '5mb' })); // Tăng lên 5MB vì có upload file base64 nếu cần, hoặc để mặc định
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Xóa bỏ HTML tags nguy hiểm từ req.body, req.query, req.params

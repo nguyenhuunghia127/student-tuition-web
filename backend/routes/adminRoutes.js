@@ -54,6 +54,7 @@ router.get('/assignments/grades/all', adminController.getAllAssignmentGrades);
 
 // Tuition
 router.get('/tuition', adminController.getTuitions);
+router.get('/tuition/payments', adminController.getPaymentHistory);
 router.post('/tuition', adminController.createTuition);
 router.put('/tuition/:id', adminController.updateTuition);
 router.delete('/tuition/:id', adminController.deleteTuition);

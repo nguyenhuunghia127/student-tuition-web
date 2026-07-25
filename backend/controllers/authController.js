@@ -34,29 +34,20 @@ export const login = async (req, res) => {
       }
       if (profile?.role) userRole = profile.role;
     } else {
-      // Fallback kiểm tra tài khoản Quản trị trong CSDL hoặc mặc định admin@gmail.com
-      const { data: localUser } = await supabaseAdmin
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (localUser && (localUser.role === 'admin' || email === 'admin@gmail.com')) {
-        userId = localUser.user_id || '00000000-0000-0000-0000-000000000001';
-        userRole = localUser.role || 'admin';
-      } else if (email === 'admin@gmail.com' || email?.includes('admin')) {
-        userId = '00000000-0000-0000-0000-000000000001';
-        userRole = 'admin';
-      } else {
-        return errorResponse(res, 'Sai thông tin đăng nhập', authError, 401);
-      }
+      return errorResponse(res, 'Sai thông tin đăng nhập', authError, 401);
     }
 
     await logActivity('admin', userId, 'LOGIN', 'auth', `Admin đăng nhập vào hệ thống (${userEmail})`);
 
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error("LỖI NGHIÊM TRỌNG: Chưa cấu hình JWT_SECRET trong môi trường!");
+      return errorResponse(res, 'Lỗi cấu hình Server', null, 500);
+    }
+
     const token = jwt.sign(
       { id: userId, email: userEmail, role: userRole },
-      process.env.JWT_SECRET || 'secret-key-123456-tuition-web',
+      jwtSecret,
       { expiresIn: '24h' }
     );
 

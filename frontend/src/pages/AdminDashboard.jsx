@@ -80,6 +80,14 @@ export default function AdminDashboard() {
   })
   const [showTuitionModal, setShowTuitionModal] = useState(false)
   const [tuitionSearch, setTuitionSearch] = useState('')
+  const [tuitionView, setTuitionView] = useState('list')
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [paymentSearch, setPaymentSearch] = useState('')
+  const [paymentClassFilter, setPaymentClassFilter] = useState('All')
+  const [paymentStartDate, setPaymentStartDate] = useState('')
+  const [paymentEndDate, setPaymentEndDate] = useState('')
+  const [paymentPage, setPaymentPage] = useState(1)
+  const paymentPageSize = 20
   const [tuitionClassFilter, setTuitionClassFilter] = useState('All')
   const [tuitionMonthFilter, setTuitionMonthFilter] = useState('All')
   const [tuitionStatusFilter, setTuitionStatusFilter] = useState('All')
@@ -175,6 +183,7 @@ export default function AdminDashboard() {
         fetchStats(),
         fetchStudents(),
         fetchTuition(),
+        fetchPaymentHistory(),
         fetchGrades(),
         fetchAssignmentGrades(),
         fetchGradeSettings(),
@@ -245,6 +254,12 @@ export default function AdminDashboard() {
     const res = await fetch(`${API_URL}/api/admin/tuition`)
     const data = await res.json()
     if (data.success) setTuitionFees(data.data)
+  }
+
+  const fetchPaymentHistory = async () => {
+    const res = await fetch(`${API_URL}/api/admin/tuition/payments`)
+    const data = await res.json()
+    if (data.success) setPaymentHistory(data.data)
   }
 
   const fetchGrades = async () => {
@@ -340,18 +355,22 @@ export default function AdminDashboard() {
   }
 
   const handleExportGrades = async () => {
+    await handleDownloadAuth(`${API_URL}/api/admin/grades/export`, 'Bang_Diem.xlsx');
+  };
+
+  const handleDownloadAuth = async (url, filename) => {
     try {
-      const response = await fetch(`${API_URL}/api/admin/grades/export`);
-      if (!response.ok) throw new Error('Lỗi tải file export');
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Lỗi tải file');
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const objUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Bang_Diem.xlsx';
+      a.href = objUrl;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(objUrl);
     } catch (err) {
       alert(err.message);
     }
@@ -447,7 +466,7 @@ export default function AdminDashboard() {
       })
       if (response.ok) {
         setSelectedTuitions([])
-        await fetchTuitionFees()
+        await fetchTuition()
         await fetchStats()
       } else {
         const resJson = await response.json()
@@ -528,7 +547,7 @@ export default function AdminDashboard() {
         split_by_month: true,
         custom_title: ''
       })
-      await fetchTuitionFees()
+      await fetchTuition()
       await fetchStats()
     } catch (err) {
       alert(err.message)
@@ -562,6 +581,7 @@ export default function AdminDashboard() {
       const resJson = await response.json()
       if (resJson.success) {
         await fetchTuition()
+        await fetchPaymentHistory()
         await fetchStats()
       } else {
         alert(resJson.message)
@@ -582,6 +602,7 @@ export default function AdminDashboard() {
       const resJson = await response.json()
       if (resJson.success) {
         await fetchTuition()
+        await fetchPaymentHistory()
         await fetchStats()
       }
     } catch (err) {
@@ -1381,11 +1402,11 @@ export default function AdminDashboard() {
                 </select>
 
                 <div className="flex items-center gap-2">
-                  <a href={`${API_URL}/api/admin/templates/students`} download className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline font-semibold px-2">Tải file mẫu</a>
-                  <a href={`${API_URL}/api/admin/students/export`} download className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1 shadow-md">
+                  <button onClick={() => handleDownloadAuth(`${API_URL}/api/admin/templates/students`, 'mau_import_hoc_sinh.xlsx')} className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline font-semibold px-2 cursor-pointer">Tải file mẫu</button>
+                  <button onClick={() => handleDownloadAuth(`${API_URL}/api/admin/students/export`, 'danh_sach_hoc_sinh.xlsx')} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1 shadow-md">
                     <Download className="w-3.5 h-3.5" />
                     <span>Xuất Excel</span>
-                  </a>
+                  </button>
                   <label className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1 shadow-md">
                     <Upload className="w-3.5 h-3.5" />
                     <span>Import Excel</span>
@@ -1605,7 +1626,8 @@ export default function AdminDashboard() {
         {activeSubTab === 'tuition' && (() => {
           const filteredTuition = tuitionFees.filter(fee => {
             const stu = fee.students || {};
-            const matchName = (stu.full_name || '').toLowerCase().includes(tuitionSearch.toLowerCase());
+            const searchLower = tuitionSearch.toLowerCase();
+            const matchName = (stu.full_name || '').toLowerCase().includes(searchLower) || (stu.phone_number || '').toLowerCase().includes(searchLower);
             const matchClass = tuitionClassFilter === 'All' || stu.class_name === tuitionClassFilter;
             const matchStatus = tuitionStatusFilter === 'All' || fee.status === tuitionStatusFilter;
             
@@ -1627,8 +1649,33 @@ export default function AdminDashboard() {
           return (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white">Quản Lý Học Phí</h2>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <h2 className="text-xl font-black text-slate-900 dark:text-white">Quản Lý Học Phí</h2>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    onClick={() => setTuitionView('list')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                      tuitionView === 'list'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Danh sách
+                  </button>
+                  <button
+                    onClick={() => setTuitionView('history')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                      tuitionView === 'history'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Lịch sử
+                  </button>
+                </div>
+              </div>
               
+              {tuitionView === 'list' && (
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto">
                 <div className="relative w-full sm:w-auto">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
@@ -1636,7 +1683,7 @@ export default function AdminDashboard() {
                   </span>
                   <input
                     type="text"
-                    placeholder="Tìm học sinh..."
+                    placeholder="Tìm tên hoặc SĐT..."
                     value={tuitionSearch}
                     onChange={(e) => setTuitionSearch(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-slate-900 dark:text-white"
@@ -1706,8 +1753,10 @@ export default function AdminDashboard() {
                   </button>
                 )}
               </div>
+              )}
             </div>
             
+            {tuitionView === 'list' && (<>
             {/* Thống kê học phí */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
@@ -1884,6 +1933,184 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+            </>)}
+
+            {tuitionView === 'history' && (() => {
+              const filteredPaymentHistory = paymentHistory.filter(h => {
+                const q = paymentSearch.toLowerCase();
+                const name = (h.students?.full_name || '').toLowerCase();
+                const phone = (h.students?.phone_number || '').toLowerCase();
+                const matchName = name.includes(q) || phone.includes(q);
+                
+                const matchClass = paymentClassFilter === 'All' || h.students?.class_name === paymentClassFilter;
+                
+                let matchDate = true;
+                if (paymentStartDate || paymentEndDate) {
+                  const payDate = new Date(h.paid_at);
+                  
+                  if (paymentStartDate) {
+                    const start = new Date(paymentStartDate);
+                    start.setHours(0, 0, 0, 0);
+                    if (payDate < start) matchDate = false;
+                  }
+                  
+                  if (paymentEndDate) {
+                    const end = new Date(paymentEndDate);
+                    end.setHours(23, 59, 59, 999);
+                    if (payDate > end) matchDate = false;
+                  }
+                }
+                
+                return matchName && matchClass && matchDate;
+              });
+
+              const totalPaymentAmount = filteredPaymentHistory.reduce((sum, h) => sum + Number(h.amount), 0);
+              const totalPaymentPages = Math.ceil(filteredPaymentHistory.length / paymentPageSize);
+
+              return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-sm md:col-span-4">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tổng tiền đã thu (Theo lọc)</p>
+                      <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{totalPaymentAmount.toLocaleString('vi-VN')} đ</p>
+                    </div>
+                    <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg"><DollarSign className="w-5 h-5"/></div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Tìm kiếm</label>
+                    <div className="relative w-full">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <Search className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Tên, SĐT..."
+                        value={paymentSearch}
+                        onChange={(e) => setPaymentSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Lớp học</label>
+                    <select
+                      value={paymentClassFilter}
+                      onChange={(e) => setPaymentClassFilter(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-slate-900 dark:text-white cursor-pointer"
+                    >
+                      <option value="All">Tất cả</option>
+                      {Array.from(new Set(students.map(s => s.class_name))).sort().map(cls => (
+                        <option key={cls} value={cls}>{cls}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Từ ngày</label>
+                    <input
+                      type="date"
+                      value={paymentStartDate}
+                      onChange={(e) => setPaymentStartDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-slate-900 dark:text-white cursor-pointer"
+                      title="Từ ngày"
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Đến ngày</label>
+                    <input
+                      type="date"
+                      value={paymentEndDate}
+                      onChange={(e) => setPaymentEndDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-slate-900 dark:text-white cursor-pointer"
+                      title="Đến ngày"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="overflow-x-auto min-h-[400px]">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+                          <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Học sinh</th>
+                          <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Lớp</th>
+                          <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Khoản thu</th>
+                          <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Số tiền</th>
+                          <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Thời gian đóng</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {filteredPaymentHistory
+                          .slice((paymentPage - 1) * paymentPageSize, paymentPage * paymentPageSize)
+                          .map(h => (
+                            <tr key={h.payment_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                              <td className="p-4">
+                                <p className="font-bold text-slate-900 dark:text-white text-sm">{h.students?.full_name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{h.students?.phone_number}</p>
+                              </td>
+                              <td className="p-4">
+                                <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium">
+                                  {h.students?.class_name || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="p-4 text-sm font-medium text-slate-700 dark:text-slate-300">
+                                {h.tuition_fees?.title || 'N/A'}
+                              </td>
+                              <td className="p-4">
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  {Number(h.amount).toLocaleString('vi-VN')} đ
+                                </span>
+                              </td>
+                              <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
+                                {new Date(h.paid_at).toLocaleString('vi-VN')}
+                              </td>
+                            </tr>
+                        ))}
+                        {filteredPaymentHistory.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="p-8 text-center text-slate-500 dark:text-slate-400">
+                              Không tìm thấy lịch sử thanh toán nào phù hợp
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Phân trang lịch sử */}
+                  {totalPaymentPages > 1 && (
+                    <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        Hiển thị {((paymentPage - 1) * paymentPageSize) + 1} - {Math.min(paymentPage * paymentPageSize, filteredPaymentHistory.length)}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          disabled={paymentPage === 1}
+                          onClick={() => setPaymentPage(p => p - 1)}
+                          className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-50 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          Trước
+                        </button>
+                        <span className="px-3 py-1.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg">
+                          {paymentPage}
+                        </span>
+                        <button 
+                          disabled={paymentPage === totalPaymentPages}
+                          onClick={() => setPaymentPage(p => p + 1)}
+                          className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-50 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          Sau
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )})()}
           </div>
           )
         })()}
@@ -1927,7 +2154,7 @@ export default function AdminDashboard() {
                     <Settings className="w-4 h-4" />
                   </button>
 
-                  <a href={`${API_URL}/api/admin/templates/grades`} download className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline font-semibold px-2">Tải file mẫu</a>
+                  <button onClick={() => handleDownloadAuth(`${API_URL}/api/admin/templates/grades`, 'mau_import_diem.xlsx')} className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline font-semibold px-2 cursor-pointer">Tải file mẫu</button>
                   
                   <button
                     onClick={handleExportGrades}
@@ -1949,12 +2176,6 @@ export default function AdminDashboard() {
                     />
                   </label>
 
-                  <button
-                    onClick={() => setShowGradeModal(true)}
-                    className="px-4 py-2 bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-md cursor-pointer"
-                  >
-                    <span>+ Nhập điểm</span>
-                  </button>
                 </div>
               )}
             </div>
@@ -3195,18 +3416,32 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                      {grades.filter(g => g.student_id === studentProfile.student_id).slice(0, 3).map((g, idx) => (
-                        <tr key={idx}>
-                          <td className="px-4 py-2 font-medium">{g.subject_name}</td>
-                          <td className="px-4 py-2 text-center">{g.grade_15m ?? '-'}</td>
-                          <td className="px-4 py-2 text-center">{g.grade_45m ?? '-'}</td>
-                          <td className="px-4 py-2 text-center">{g.midterm_grade ?? '-'}</td>
-                          <td className="px-4 py-2 text-center font-bold text-purple-600 dark:text-purple-400">{g.final_grade ?? '-'}</td>
-                        </tr>
-                      ))}
-                      {grades.filter(g => g.student_id === studentProfile.student_id).length === 0 && (
-                        <tr><td colSpan="5" className="px-4 py-3 text-center text-slate-500">Chưa có dữ liệu điểm</td></tr>
-                      )}
+                      {(() => {
+                        const sGrades = grades.filter(g => g.student_id === studentProfile.student_id);
+                        const sSchedules = schedules.filter(s => s.student_id === studentProfile.student_id);
+                        const aSubjects = Array.from(new Set([
+                          ...(studentProfile.enrolled_subjects || []),
+                          ...sGrades.map(g => g.subject_name),
+                          ...sSchedules.map(s => s.subject_name)
+                        ].filter(Boolean)));
+
+                        if (aSubjects.length === 0) {
+                          return <tr><td colSpan="5" className="px-4 py-3 text-center text-slate-500">Chưa có dữ liệu môn học</td></tr>;
+                        }
+
+                        return aSubjects.map((subj, idx) => {
+                          const g = sGrades.find(grade => grade.subject_name === subj) || {};
+                          return (
+                            <tr key={idx}>
+                              <td className="px-4 py-2 font-medium">{subj}</td>
+                              <td className="px-4 py-2 text-center">{g.grade_15m ?? '-'}</td>
+                              <td className="px-4 py-2 text-center">{g.grade_45m ?? '-'}</td>
+                              <td className="px-4 py-2 text-center">{g.midterm_grade ?? '-'}</td>
+                              <td className="px-4 py-2 text-center font-bold text-purple-600 dark:text-purple-400">{g.final_grade ?? '-'}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -3581,120 +3816,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MODAL CRUD ĐIỂM SỐ */}
-      {showGradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#1f2833] border-0 sm:border border-slate-200 dark:border-slate-800 rounded-none sm:rounded-3xl w-full sm:max-w-md max-w-full p-4 sm:p-6 h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-2xl space-y-5 flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-lg font-bold text-slate-955 dark:text-white">Nhập điểm môn học</h3>
-              <button onClick={() => setShowGradeModal(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">✕</button>
-            </div>
 
-            <form onSubmit={handleSaveGrade} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Chọn Học sinh</label>
-                <select
-                  required
-                  value={gradeForm.student_id}
-                  onChange={(e) => setGradeForm({ ...gradeForm, student_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg text-slate-950 dark:text-white text-sm"
-                >
-                  <option value="">Chọn học sinh...</option>
-                  {students.map(s => (
-                    <option key={s.student_id} value={s.student_id}>{s.full_name} ({s.class_name})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Tên môn học</label>
-                <select
-                  required
-                  value={gradeForm.subject_name}
-                  onChange={(e) => setGradeForm({ ...gradeForm, subject_name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg text-slate-950 dark:text-white"
-                >
-                  <option value="">-- Chọn môn học --</option>
-                  <option value="Toán">Toán</option>
-                  <option value="Vật Lý">Vật Lý</option>
-                  <option value="Hóa Học">Hóa Học</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">15 Phút</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="10"
-                    placeholder="8.5"
-                    value={gradeForm.grade_15m}
-                    onChange={(e) => setGradeForm({ ...gradeForm, grade_15m: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg text-slate-950 dark:text-white text-center"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">1 Tiết</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="10"
-                    placeholder="7.0"
-                    value={gradeForm.grade_45m}
-                    onChange={(e) => setGradeForm({ ...gradeForm, grade_45m: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg text-slate-950 dark:text-white text-center"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Giữa Kì</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="10"
-                    placeholder="8.0"
-                    value={gradeForm.midterm_grade}
-                    onChange={(e) => setGradeForm({ ...gradeForm, midterm_grade: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg text-slate-950 dark:text-white text-center"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cuối Kì</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="10"
-                    placeholder="9.0"
-                    value={gradeForm.final_grade}
-                    onChange={(e) => setGradeForm({ ...gradeForm, final_grade: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg text-slate-950 dark:text-white text-center"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowGradeModal(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-bold text-xs rounded-xl hover:text-slate-900"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs rounded-xl cursor-pointer"
-                >
-                  Lưu điểm
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* MODAL CRUD LỊCH HỌC */}
       {showScheduleModal && (

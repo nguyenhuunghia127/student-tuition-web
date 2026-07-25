@@ -11,7 +11,12 @@ export const requireAdmin = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret-key-123456-tuition-web');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error("LỖI NGHIÊM TRỌNG: Chưa cấu hình JWT_SECRET trong môi trường!");
+      return errorResponse(res, 'Lỗi cấu hình Server', null, 500);
+    }
+    const decoded = jwt.verify(token, jwtSecret);
     
     if (decoded.role !== 'admin') {
       return errorResponse(res, 'Bạn không có quyền truy cập', null, 403);

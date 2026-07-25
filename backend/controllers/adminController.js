@@ -288,7 +288,8 @@ export const importStudents = async (req, res) => {
 
     if (sheetData.length === 0) return errorResponse(res, 'File Excel không có dữ liệu');
 
-    let inserted = 0;
+    const payloads = [];
+
     for (const row of sheetData) {
       const fullName = row['Họ và tên'] || row['full_name'] || row['Name'];
       const className = row['Lớp'] || row['class_name'] || row['Class'];
@@ -298,18 +299,24 @@ export const importStudents = async (req, res) => {
 
       if (!fullName || !phone) continue;
 
-      const payload = {
+      payloads.push({
         full_name: String(fullName).trim(),
         class_name: className ? String(className).trim() : 'Lớp chung',
         phone_number: String(phone).trim(),
         parent_name: parentName ? String(parentName).trim() : null,
         parent_phone: parentPhone ? String(parentPhone).trim() : null
-      };
-
-      const { error } = await supabaseAdmin.from('students').insert(payload);
-      if (!error) inserted++;
+      });
     }
 
+    if (payloads.length === 0) {
+      return errorResponse(res, 'Không tìm thấy dữ liệu hợp lệ trong file');
+    }
+
+    // BULK INSERT: Gửi 1 query duy nhất lên Database
+    const { error } = await supabaseAdmin.from('students').insert(payloads);
+    if (error) throw error;
+
+    const inserted = payloads.length;
     await logActivity('admin', req.user?.id, 'IMPORT', 'students', `Import thành công ${inserted} học sinh từ file Excel`);
     return successResponse(res, { count: inserted }, `Import thành công ${inserted} học sinh`);
   } catch (error) {
@@ -439,8 +446,22 @@ export const importGrades = async (req, res) => {
       const sMid = row['Điểm Giữa Kỳ'] !== undefined ? Number(row['Điểm Giữa Kỳ']) : null;
       const sFin = row['Điểm Cuối Kỳ'] !== undefined ? Number(row['Điểm Cuối Kỳ']) : null;
 
+      const { data: existingGrade } = await supabaseAdmin.from('grades')
+        .select('grade_id')
+        .eq('student_id', student.student_id)
+        .eq('subject_name', subjectName)
+        .maybeSingle();
+
       await createGrade({
-        body: { student_id: student.student_id, subject_name: subjectName, score_15m: s15, score_45m: s45, score_midterm: sMid, score_final: sFin }
+        body: { 
+          id: existingGrade ? existingGrade.grade_id : undefined,
+          student_id: student.student_id, 
+          subject_name: subjectName, 
+          score_15m: s15, 
+          score_45m: s45, 
+          score_midterm: sMid, 
+          score_final: sFin 
+        }
       }, { json: () => {}, status: () => ({ json: () => {} }) });
       count++;
     }
@@ -722,6 +743,20 @@ export const getTuitions = async (req, res) => {
   }
 };
 
+export const getPaymentHistory = async (req, res) => {
+  try {
+    const { data, error } = await safeQuery(
+      () => supabaseAdmin.from('payment_history').select('*, students(full_name, phone_number, class_name, classes(class_name)), tuition_fees(title)').order('paid_at', { ascending: false }),
+      () => supabaseAdmin.from('payment_history').select('*, students(full_name, phone_number, class_name), tuition_fees(title)').order('paid_at', { ascending: false })
+    );
+
+    if (error && error.code !== '42703') return errorResponse(res, 'Lỗi lấy lịch sử thanh toán', error);
+    return successResponse(res, data || [], 'Lấy lịch sử thanh toán thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};
+
 export const createTuition = async (req, res) => {
   const { student_id, title, amount, due_date } = req.body;
   if (!student_id || !title || !amount || !due_date) {
@@ -808,7 +843,21 @@ export const assignClassTuition = async (req, res) => {
 
     if (students.length === 0) return errorResponse(res, 'Không tìm thấy học sinh nào trong lớp này');
 
-    const feesToInsert = students.map(s => ({
+    const studentIds = students.map(s => s.student_id);
+    const { data: existingFees } = await supabaseAdmin
+      .from('tuition_fees')
+      .select('student_id')
+      .in('student_id', studentIds)
+      .eq('title', title);
+
+    const existingStudentIds = existingFees ? existingFees.map(f => f.student_id) : [];
+    const validStudents = students.filter(s => !existingStudentIds.includes(s.student_id));
+
+    if (validStudents.length === 0) {
+      return errorResponse(res, 'Tất cả học sinh trong lớp này đã được gán khoản học phí này trước đó.');
+    }
+
+    const feesToInsert = validStudents.map(s => ({
       student_id: s.student_id,
       title,
       amount: Number(amount),
@@ -819,8 +868,12 @@ export const assignClassTuition = async (req, res) => {
     const { error } = await supabaseAdmin.from('tuition_fees').insert(feesToInsert);
     if (error) return errorResponse(res, 'Lỗi giao học phí cho lớp', error);
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán khoản học phí "${title}" cho ${students.length} học sinh`);
-    return successResponse(res, { count: students.length }, `Đã gán học phí thành công cho ${students.length} học sinh`);
+    const skipped = students.length - validStudents.length;
+    let msg = `Đã gán học phí thành công cho ${validStudents.length} học sinh`;
+    if (skipped > 0) msg += ` (Bỏ qua ${skipped} học sinh đã có khoản phí này)`;
+
+    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán khoản học phí "${title}" cho ${validStudents.length} học sinh (Bỏ qua ${skipped})`);
+    return successResponse(res, { count: validStudents.length }, msg);
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
   }
@@ -872,8 +925,17 @@ export const assignAdvancedTuition = async (req, res) => {
       return errorResponse(res, 'Không tìm thấy học sinh nào trong phạm vi được chọn');
     }
 
+    const studentIds = targetStudents.map(s => s.student_id);
+    const { data: existingFees } = await supabaseAdmin
+      .from('tuition_fees')
+      .select('student_id, title')
+      .in('student_id', studentIds);
+
+    const existingFeeSet = new Set(existingFees ? existingFees.map(f => `${f.student_id}_${f.title}`) : []);
+
     const startDateObj = start_date ? new Date(start_date) : new Date();
     const batchTuitions = [];
+    let skippedCount = 0;
 
     for (const student of targetStudents) {
       for (const cfg of configs) {
@@ -889,10 +951,16 @@ export const assignAdvancedTuition = async (req, res) => {
             const dueDate = new Date(startDateObj);
             dueDate.setMonth(dueDate.getMonth() + m);
             const monthStr = `${dueDate.getMonth() + 1}/${dueDate.getFullYear()}`;
+            const feeTitle = custom_title ? `${custom_title} - ${subjectName} (T${monthStr})` : `Học phí Môn ${subjectName} - Tháng ${monthStr}`;
+
+            if (existingFeeSet.has(`${student.student_id}_${feeTitle}`)) {
+              skippedCount++;
+              continue;
+            }
 
             batchTuitions.push({
               student_id: student.student_id,
-              title: custom_title ? `${custom_title} - ${subjectName} (T${monthStr})` : `Học phí Môn ${subjectName} - Tháng ${monthStr}`,
+              title: feeTitle,
               amount: pricePerMonth,
               due_date: dueDate.toISOString().split('T')[0],
               status: 'unpaid'
@@ -904,10 +972,16 @@ export const assignAdvancedTuition = async (req, res) => {
           endDateObj.setMonth(endDateObj.getMonth() + numMonths - 1);
           const startStr = `${startDateObj.getMonth() + 1}/${startDateObj.getFullYear()}`;
           const endStr = `${endDateObj.getMonth() + 1}/${endDateObj.getFullYear()}`;
+          const feeTitle = custom_title ? `${custom_title} - ${subjectName}` : `Học phí Môn ${subjectName} (Gói ${numMonths} tháng: T${startStr} - T${endStr})`;
+
+          if (existingFeeSet.has(`${student.student_id}_${feeTitle}`)) {
+            skippedCount++;
+            continue;
+          }
 
           batchTuitions.push({
             student_id: student.student_id,
-            title: custom_title ? `${custom_title} - ${subjectName}` : `Học phí Môn ${subjectName} (Gói ${numMonths} tháng: T${startStr} - T${endStr})`,
+            title: feeTitle,
             amount: pricePerMonth * numMonths,
             due_date: startDateObj.toISOString().split('T')[0],
             status: 'unpaid'
@@ -916,12 +990,20 @@ export const assignAdvancedTuition = async (req, res) => {
       }
     }
 
+    if (batchTuitions.length === 0) {
+      return errorResponse(res, 'Tất cả các khoản học phí này đã được gán trước đó.');
+    }
+
     const { error } = await supabaseAdmin.from('tuition_fees').insert(batchTuitions);
     if (error) return errorResponse(res, 'Lỗi lưu khoản học phí', error);
 
     const subjectNames = configs.map(c => c.subject_name).join(', ');
+    
+    let msg = `Đã gán học phí thành công! Tạo mới ${batchTuitions.length} khoản thu.`;
+    if (skippedCount > 0) msg += ` (Bỏ qua ${skippedCount} khoản trùng lặp)`;
+
     await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán học phí linh hoạt cho ${targetStudents.length} học sinh (${subjectNames})`);
-    return successResponse(res, { count: batchTuitions.length }, `Đã gán học phí thành công! Tạo mới ${batchTuitions.length} khoản thu.`);
+    return successResponse(res, { count: batchTuitions.length }, msg);
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống gán học phí', error, 500);
   }
@@ -1133,15 +1215,21 @@ export const saveScheduleAttendance = async (req, res) => {
   if (!Array.isArray(attendances)) return errorResponse(res, 'Dữ liệu điểm danh không hợp lệ');
 
   try {
-    for (const item of attendances) {
-      const { student_id, is_present, note } = item;
-      const { data: existing } = await supabaseAdmin.from('attendances').select('attendance_id').eq('schedule_id', id).eq('student_id', student_id).maybeSingle();
+    // Xóa toàn bộ điểm danh cũ của buổi học này (1 query)
+    await supabaseAdmin.from('attendances').delete().eq('schedule_id', id);
 
-      if (existing) {
-        await supabaseAdmin.from('attendances').update({ is_present, note }).eq('attendance_id', existing.attendance_id);
-      } else {
-        await supabaseAdmin.from('attendances').insert({ schedule_id: id, student_id, is_present, note });
-      }
+    // Chuẩn bị payload để chèn hàng loạt
+    const payloads = attendances.map(item => ({
+      schedule_id: id,
+      student_id: item.student_id,
+      is_present: item.is_present,
+      note: item.note
+    }));
+
+    // Chèn hàng loạt dữ liệu mới (1 query)
+    if (payloads.length > 0) {
+      const { error } = await supabaseAdmin.from('attendances').insert(payloads);
+      if (error) throw error;
     }
 
     await logActivity('admin', req.user?.id, 'UPDATE', 'attendances', `Lưu dữ liệu điểm danh buổi học ID: ${id}`);
