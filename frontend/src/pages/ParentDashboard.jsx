@@ -562,7 +562,7 @@ export default function ParentDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {data.notifications.map(notif => {
-                      const isTargeted = notif.type === 'targeted'
+                      const isTargeted = notif.target_type === 'student' || notif.target_type === 'targeted' || (notif.target_id && notif.target_id.startsWith('student:'))
                       return (
                         <div 
                           key={notif.notification_id} 

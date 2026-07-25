@@ -898,7 +898,7 @@ export default function AdminDashboard() {
             body: JSON.stringify({
               title: notifForm.title,
               message: notifForm.message,
-              target_type: 'targeted',
+              target_type: 'student',
               target_id: student_id,
               student_id
             })
@@ -1286,23 +1286,35 @@ export default function AdminDashboard() {
                     <div className="absolute left-3 top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-700"></div>
                     <div className="space-y-6 pb-2">
                       {notifications.slice(0, 15).map((notif, idx) => {
-                        const isTargeted = notif.target_type === 'targeted'
-                        const isSystem = notif.type === 'system' || notif.target_type === 'system'
-                        const colorClass = isTargeted ? 'bg-rose-500' : isSystem ? 'bg-cyan-500' : 'bg-indigo-500'
+                        const isTargeted = notif.target_type === 'student' || notif.target_type === 'targeted' || (notif.target_id && notif.target_id.startsWith('student:'))
+                        const isGlobal = !notif.target_type || notif.target_type === 'global' || notif.target_id === ''
+                        const isClass = notif.target_type === 'class' || notif.target_type === 'mixed'
+                        const colorClass = isTargeted ? 'bg-rose-500' : isClass ? 'bg-amber-500' : 'bg-indigo-500'
                         return (
                           <div key={notif.notification_id} className="relative pl-10 group">
                             <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full flex items-center justify-center bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 shadow-sm z-10 group-hover:scale-110 transition-transform`}>
-                              <div className={`w-2 h-2 rounded-full ${colorClass} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} style={{ shadowColor: isTargeted ? '#f43f5e' : isSystem ? '#06b6d4' : '#6366f1' }}></div>
+                              <div className={`w-2 h-2 rounded-full ${colorClass} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} style={{ shadowColor: isTargeted ? '#f43f5e' : '#6366f1' }}></div>
                             </div>
                             
                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                               <div className="flex justify-between items-start gap-2 mb-1.5">
-                                <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">{notif.title}</h4>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">{notif.title}</h4>
+                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${isTargeted ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : isClass ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'}`}>
+                                    {isTargeted ? 'Cá nhân' : isClass ? 'Lớp học' : 'Toàn trường'}
+                                  </span>
+                                </div>
                                 <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-800">
                                   {new Date(notif.created_at).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
                               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">{notif.message}</p>
+                              
+                              {notif.target_id && notif.target_id !== '' && (
+                                <div className="mt-2 text-[10px] text-slate-400 dark:text-slate-500">
+                                  Đến: <span className="font-semibold text-slate-500 dark:text-slate-400">{notif.target_id}</span>
+                                </div>
+                              )}
                               
                               {isTargeted && notif.students && (
                                 <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2">

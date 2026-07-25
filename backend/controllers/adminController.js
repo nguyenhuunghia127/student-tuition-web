@@ -18,10 +18,13 @@ const safeQuery = async (primaryQueryFn, fallbackQueryFn) => {
 
 const autoNotify = async (title, message, target_type, target_id) => {
   try {
-    const payload = { title, message, is_global: false };
-    if (target_type) payload.target_type = target_type;
-    if (target_id) payload.target_id = target_id;
-    if (!target_type) payload.is_global = true;
+    // Bảng notifications dùng target_type='global' thay vì is_global
+    const payload = {
+      title,
+      message,
+      target_type: target_type || 'global',
+      target_id: target_id || '',
+    };
     await supabaseAdmin.from('notifications').insert(payload);
   } catch (err) {
     console.error('Error auto-notifying:', err);
@@ -1166,9 +1169,16 @@ export const createNotification = async (req, res) => {
   if (!title || !message) return errorResponse(res, 'Tiêu đề và nội dung thông báo bắt buộc');
 
   try {
-    const payload = { title, message, is_global: !!is_global };
-    if (target_type) payload.target_type = target_type;
-    if (target_id) payload.target_id = target_id;
+    // Bảng notifications dùng target_type thay vì is_global
+    const resolvedTargetType = is_global ? 'global' : (target_type || 'global');
+    const resolvedTargetId = target_id || '';
+
+    const payload = {
+      title,
+      message,
+      target_type: resolvedTargetType,
+      target_id: resolvedTargetId,
+    };
 
     const { data: notif, error } = await supabaseAdmin
       .from('notifications')
@@ -1177,6 +1187,17 @@ export const createNotification = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi tạo thông báo', error);
+
+    // Nếu gửi cho class hoặc student cụ thể, thêm vào notification_targets
+    if (!is_global && target_type && target_type !== 'global') {
+      const targetPayload = {
+        notification_id: notif.notification_id,
+        target_type,
+        class_id: (target_type === 'class' ? (class_id || target_id || null) : null),
+        student_id: (target_type === 'student' ? (student_id || target_id || null) : null),
+      };
+      await supabaseAdmin.from('notification_targets').insert(targetPayload).then(() => {}).catch(() => {});
+    }
 
     await logActivity('admin', req.user?.id, 'CREATE', 'notifications', `Tạo thông báo: ${title}`);
     return successResponse(res, notif, 'Tạo thông báo thành công');

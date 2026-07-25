@@ -133,11 +133,21 @@ export const getParentDashboard = async (req, res) => {
     // Filter notifications based on target
     const allNotifs = notifsRes.data || [];
     const parentNotifs = allNotifs.filter(notif => {
-      if (notif.is_global) return true;
-      if (!notif.target_id) return true; // fallback
+      // Thông báo toàn trường
+      if (!notif.target_type || notif.target_type === 'global' || notif.target_id === '') return true;
+      // Thông báo theo lớp hoặc học sinh cụ thể
       for (const stu of students) {
-        if (notif.target_type === 'student' && notif.target_id === `student:${stu.student_id}`) return true;
-        if (notif.target_type === 'class' && (notif.target_id === `class:${stu.class_id}` || notif.target_id === stu.class_id)) return true;
+        if (notif.target_type === 'student' && (
+          notif.target_id === `student:${stu.student_id}` ||
+          notif.student_id === stu.student_id
+        )) return true;
+        if (notif.target_type === 'class' && (
+          notif.target_id === `class:${stu.class_id}` ||
+          notif.target_id === stu.class_id ||
+          notif.target_id === stu.class_name
+        )) return true;
+        // mixed format (e.g. "class:10/3")
+        if (notif.target_type === 'mixed' && stu.class_name && notif.target_id?.includes(stu.class_name)) return true;
       }
       return false;
     });
@@ -256,10 +266,21 @@ export const getDashboard = async (req, res) => {
 
     const allNotifs = notifsRes.data || [];
     const studentNotifs = allNotifs.filter(notif => {
-      if (notif.is_global) return true;
-      if (!notif.target_id) return true;
-      if (notif.target_type === 'student' && notif.target_id === `student:${student_id}`) return true;
-      if (notif.target_type === 'class' && (notif.target_id === `class:${student.class_id}` || notif.target_id === student.class_id)) return true;
+      // Thông báo toàn trường
+      if (!notif.target_type || notif.target_type === 'global' || notif.target_id === '') return true;
+      // Thông báo theo học sinh cụ thể
+      if (notif.target_type === 'student' && (
+        notif.target_id === `student:${student_id}` ||
+        notif.student_id === student_id
+      )) return true;
+      // Thông báo theo lớp
+      if (notif.target_type === 'class' && (
+        notif.target_id === `class:${student.class_id}` ||
+        notif.target_id === student.class_id ||
+        notif.target_id === student.class_name
+      )) return true;
+      // mixed format (e.g. "class:10/3")
+      if (notif.target_type === 'mixed' && student.class_name && notif.target_id?.includes(student.class_name)) return true;
       return false;
     });
 
