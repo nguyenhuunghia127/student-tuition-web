@@ -130,14 +130,16 @@ export const getParentDashboard = async (req, res) => {
       return false;
     });
 
-    // Filter notifications: Hide homework related notifications
+    // Filter notifications based on target
     const allNotifs = notifsRes.data || [];
     const parentNotifs = allNotifs.filter(notif => {
-      // Exclude homework notifications based on title/message heuristics
-      const lowerTitle = (notif.title || '').toLowerCase();
-      const lowerMsg = (notif.message || '').toLowerCase();
-      if (lowerTitle.includes('bài tập') || lowerMsg.includes('bài tập')) return false;
-      return true;
+      if (notif.is_global) return true;
+      if (!notif.target_id) return true; // fallback
+      for (const stu of students) {
+        if (notif.target_type === 'student' && notif.target_id === `student:${stu.student_id}`) return true;
+        if (notif.target_type === 'class' && (notif.target_id === `class:${stu.class_id}` || notif.target_id === stu.class_id)) return true;
+      }
+      return false;
     });
 
     let gradesData = gradesRes.data || [];
@@ -252,6 +254,15 @@ export const getDashboard = async (req, res) => {
       }
     });
 
+    const allNotifs = notifsRes.data || [];
+    const studentNotifs = allNotifs.filter(notif => {
+      if (notif.is_global) return true;
+      if (!notif.target_id) return true;
+      if (notif.target_type === 'student' && notif.target_id === `student:${student_id}`) return true;
+      if (notif.target_type === 'class' && (notif.target_id === `class:${student.class_id}` || notif.target_id === student.class_id)) return true;
+      return false;
+    });
+
     return successResponse(res, {
       student,
       tuitionFees: feesRes.data || [],
@@ -260,7 +271,7 @@ export const getDashboard = async (req, res) => {
       grades: gradesData,
       assignments: assignmentsRes.data || [],
       submissions: submissionsRes.data || [],
-      notifications: notifsRes.data || [],
+      notifications: studentNotifs,
       gradeAppeals: appealsRes.data || [],
       documents: docsRes.data || [],
       attendances: attendancesRes.data || []
@@ -381,19 +392,28 @@ export const payTuition = async (req, res) => {
 };
 
 export const submitGradeAppeal = async (req, res) => {
-  const { student_id, subject_id, grade_id, reason } = req.body;
+  const { student_id, subject_name, reference_type, reference_id, reason } = req.body;
   if (!student_id || !reason) {
     return errorResponse(res, 'Thiếu thông tin phúc khảo (student_id, reason)');
   }
 
   try {
+    let finalReferenceId = reference_id;
+    if (reference_id && typeof reference_id === 'string' && reference_id.startsWith('temp-')) {
+      finalReferenceId = null; // Do not insert 'temp-' string into UUID column
+    }
+
     const payload = {
       student_id,
+      subject_name: subject_name || 'Không rõ',
+      reference_type: reference_type || 'grade',
       reason,
       status: 'pending'
     };
-    if (subject_id) payload.subject_id = subject_id;
-    if (grade_id) payload.grade_id = grade_id;
+    
+    if (finalReferenceId) {
+      payload.reference_id = finalReferenceId;
+    }
 
     const { data, error } = await supabaseAdmin
       .from('grade_appeals')

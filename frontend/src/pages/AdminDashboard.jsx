@@ -112,6 +112,7 @@ export default function AdminDashboard() {
 
   const [selectedAssignForGrading, setSelectedAssignForGrading] = useState(null)
   const [gradingPayload, setGradingPayload] = useState({ submission_id: '', grade: '', feedback: '', subject_name: '' })
+  const [editSubmissionPayload, setEditSubmissionPayload] = useState({ submission_id: '', file_url: '' })
 
   const fileInputRef = useRef(null)
 
@@ -854,6 +855,27 @@ export default function AdminDashboard() {
       await fetchSubmissions(selectedAssignForGrading.assignment_id)
       await fetchGrades()
       await fetchStats()
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  const handleUpdateSubmissionFile = async (e) => {
+    e.preventDefault()
+    try {
+      const response = await fetch(`${API_URL}/api/admin/assignments/submissions/${editSubmissionPayload.submission_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_url: editSubmissionPayload.file_url })
+      })
+      const resJson = await response.json()
+      if (!response.ok) throw new Error(resJson.message)
+
+      alert('Đã cập nhật link bài nộp thành công!')
+      setEditSubmissionPayload({ submission_id: '', file_url: '' })
+      if (selectedAssignForGrading) {
+        await fetchSubmissions(selectedAssignForGrading.assignment_id)
+      }
     } catch (err) {
       alert(err.message)
     }
@@ -2578,6 +2600,13 @@ export default function AdminDashboard() {
                                     >
                                       {isGraded ? 'Chấm lại' : 'Chấm điểm'}
                                     </button>
+                                    <button
+                                      onClick={() => setEditSubmissionPayload({ submission_id: sub.submission_id, file_url: sub.file_url || '' })}
+                                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                                      title="Sửa link bài nộp"
+                                    >
+                                      ✏️
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -2671,6 +2700,56 @@ export default function AdminDashboard() {
                             className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all"
                           >
                             Lưu Điểm & Thông Báo
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* MODAL SỬA LINK BÀI NỘP */}
+                {editSubmissionPayload.submission_id && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                    <div className="bg-white dark:bg-[#1a2332] border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-6">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl text-amber-600 dark:text-amber-400">
+                            <Edit3 className="w-5 h-5" />
+                          </div>
+                          <h4 className="text-lg font-black text-slate-900 dark:text-white">Sửa Link Bài Nộp</h4>
+                        </div>
+                        <button
+                          onClick={() => setEditSubmissionPayload({ submission_id: '', file_url: '' })}
+                          className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <form onSubmit={handleUpdateSubmissionFile} className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Link bài nộp mới</label>
+                          <input
+                            type="url"
+                            required
+                            value={editSubmissionPayload.file_url}
+                            onChange={(e) => setEditSubmissionPayload({ ...editSubmissionPayload, file_url: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all"
+                            placeholder="https://drive.google.com/..."
+                          />
+                        </div>
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditSubmissionPayload({ submission_id: '', file_url: '' })}
+                            className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm rounded-xl transition-colors"
+                          >
+                            Hủy bỏ
+                          </button>
+                          <button
+                            type="submit"
+                            className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all"
+                          >
+                            Cập Nhật Link
                           </button>
                         </div>
                       </form>

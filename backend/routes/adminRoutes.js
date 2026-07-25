@@ -49,6 +49,7 @@ router.put('/assignments/:id', adminController.updateAssignment);
 router.delete('/assignments/:id', adminController.deleteAssignment);
 router.get('/assignments/:id/submissions', adminController.getSubmissions);
 router.post('/assignments/grade', adminController.gradeSubmission);
+router.put('/assignments/submissions/:id', adminController.updateSubmissionFile);
 router.get('/assignments/grades/all', adminController.getAllAssignmentGrades);
 
 // Tuition

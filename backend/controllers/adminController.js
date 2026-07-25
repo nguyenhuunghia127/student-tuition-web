@@ -16,6 +16,18 @@ const safeQuery = async (primaryQueryFn, fallbackQueryFn) => {
   }
 };
 
+const autoNotify = async (title, message, target_type, target_id) => {
+  try {
+    const payload = { title, message, is_global: false };
+    if (target_type) payload.target_type = target_type;
+    if (target_id) payload.target_id = target_id;
+    if (!target_type) payload.is_global = true;
+    await supabaseAdmin.from('notifications').insert(payload);
+  } catch (err) {
+    console.error('Error auto-notifying:', err);
+  }
+};
+
 // ==========================================
 // 1. QUẢN LÝ LỚP HỌC (Classes)
 // ==========================================
@@ -394,6 +406,9 @@ export const createGrade = async (req, res) => {
     if (error) return errorResponse(res, 'Lỗi lưu điểm số', error);
 
     await logActivity('admin', req.user?.id, 'UPDATE', 'grades', `Cập nhật điểm cho học sinh ID: ${student_id}`);
+    
+    await autoNotify('Cập nhật điểm số', `Điểm môn ${gradeData.subject_name} của bạn vừa được cập nhật.`, 'student', `student:${student_id}`);
+    
     return successResponse(res, data, 'Lưu điểm thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -567,6 +582,7 @@ export const createAssignment = async (req, res) => {
     }
 
     await logActivity('admin', req.user?.id, 'CREATE', 'assignments', `Tạo bài tập mới: ${title}`);
+    await autoNotify('Bài tập mới', `Bài tập mới: ${title} (Hạn nộp: ${new Date(deadline).toLocaleDateString('vi-VN')})`, target_type, target_id);
     return successResponse(res, assignment, 'Tạo bài tập thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -631,7 +647,28 @@ export const gradeSubmission = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi chấm bài', error);
+    await autoNotify('Đã chấm điểm bài tập', `Bài tập của bạn đã được chấm: ${grade} điểm.`, 'student', `student:${data.student_id}`);
     return successResponse(res, data, 'Chấm bài thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};
+
+export const updateSubmissionFile = async (req, res) => {
+  const { id } = req.params;
+  const { file_url } = req.body;
+  if (!id || !file_url) return errorResponse(res, 'Thiếu thông tin cập nhật bài nộp');
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('assignment_submissions')
+      .update({ file_url })
+      .eq('submission_id', id)
+      .select()
+      .single();
+    if (error) return errorResponse(res, 'Lỗi cập nhật bài nộp', error);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'assignment_submissions', `Cập nhật link bài nộp ID: ${id}`);
+    await autoNotify('Admin đã sửa bài nộp', `Admin vừa cập nhật link bài nộp của bạn.`, 'student', `student:${data.student_id}`);
+    return successResponse(res, data, 'Cập nhật bài nộp thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
   }
@@ -954,6 +991,9 @@ export const createSchedule = async (req, res) => {
 
     if (error) return errorResponse(res, 'Lỗi tạo lịch học', error);
     await logActivity('admin', req.user?.id, 'CREATE', 'schedules', `Tạo buổi học ngày ${study_date}`);
+    
+    await autoNotify('Lịch học mới', `Lịch học mới: ${payload.subject_name || 'Môn chung'} vào ngày ${new Date(study_date).toLocaleDateString('vi-VN')}.`, payload.target_type, payload.target_id);
+    
     return successResponse(res, data, 'Tạo buổi học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -999,6 +1039,7 @@ export const updateSchedule = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi cập nhật lịch học', error);
+    await autoNotify('Cập nhật lịch học', `Lịch học ngày ${new Date(data.study_date).toLocaleDateString('vi-VN')} đã được cập nhật.`, data.target_type, data.target_id);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);

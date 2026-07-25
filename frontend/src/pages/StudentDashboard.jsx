@@ -385,32 +385,30 @@ export default function StudentDashboard() {
                       </div>
                     ) : (
                       <div className="mt-6 space-y-4">
-                        <div className="text-3xl font-extrabold text-red-500 dark:text-red-400">
-                          {data.tuitionFees
-                            .filter(f => f.status === 'unpaid')
-                            .reduce((sum, f) => sum + parseFloat(f.amount), 0)
-                            .toLocaleString('vi-VN')} VND
-                        </div>
                         <div className="space-y-3 pt-2">
-                          {data.tuitionFees.filter(f => f.status === 'unpaid').map(fee => (
-                            <div key={fee.fee_id} className="p-4 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-red-500/10 rounded-2xl flex flex-col gap-3">
+                          {data.tuitionFees.filter(f => f.status === 'unpaid').map(fee => {
+                            const isOverdue = new Date(fee.due_date) < new Date();
+                            return (
+                            <div key={fee.fee_id} className={`p-4 bg-slate-50 dark:bg-slate-950/80 border ${isOverdue ? 'border-red-200 dark:border-red-500/20' : 'border-slate-200 dark:border-slate-800'} rounded-2xl flex flex-col gap-3`}>
                               <div>
                                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">{fee.title}</h4>
-                                <p className="text-xs text-red-500 dark:text-red-400 font-semibold mt-1">Hạn đóng: {new Date(fee.due_date).toLocaleDateString('vi-VN')}</p>
+                                <p className={`text-xs font-semibold mt-1 ${isOverdue ? 'text-red-500 dark:text-red-400' : 'text-cyan-600 dark:text-cyan-400'}`}>
+                                  {isOverdue ? 'Quá hạn: ' : 'Hạn đóng: '}{new Date(fee.due_date).toLocaleDateString('vi-VN')}
+                                </p>
                               </div>
                               <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                                 <span className="text-sm font-extrabold text-slate-800 dark:text-slate-300">{Number(fee.amount).toLocaleString('vi-VN')} đ</span>
                                 <button
                                   onClick={() => handleOpenQRModal(fee)}
                                   disabled={loadingFeeId === fee.fee_id}
-                                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  className={`px-4 py-2 ${isOverdue ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950'} font-bold text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50`}
                                 >
                                   {loadingFeeId === fee.fee_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
                                   <span>{loadingFeeId === fee.fee_id ? 'Đang tạo...' : 'Mã VietQR'}</span>
                                 </button>
                               </div>
                             </div>
-                          ))}
+                          )})}
                         </div>
                       </div>
                     )}
@@ -645,11 +643,12 @@ export default function StudentDashboard() {
                     <div className="overflow-x-auto w-full">
                       <table className="min-w-max w-full text-left text-sm">
                         <thead>
-                          <tr className="border-b border-slate-250 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-xs font-bold uppercase">
+                          <tr className="border-b border-slate-250 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-xs font-bold uppercase text-left">
                             <th className="px-4 whitespace-nowrap pb-3 pl-4">Môn học / Bài tập</th>
                             <th className="px-4 whitespace-nowrap pb-3">Lý do</th>
                             <th className="px-4 whitespace-nowrap pb-3">Ngày gửi</th>
-                            <th className="px-4 whitespace-nowrap pb-3 text-center pr-4">Trạng thái</th>
+                            <th className="px-4 whitespace-nowrap pb-3 text-center">Trạng thái</th>
+                            <th className="px-4 whitespace-nowrap pb-3 pr-4">Phản hồi</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -658,10 +657,13 @@ export default function StudentDashboard() {
                               <td className="px-4 whitespace-nowrap py-4 pl-4 font-bold text-slate-900 dark:text-white">{appeal.subject_name}</td>
                               <td className="px-4 py-4 max-w-xs truncate" title={appeal.reason}>{appeal.reason}</td>
                               <td className="px-4 whitespace-nowrap py-4 text-xs font-mono">{new Date(appeal.created_at).toLocaleDateString('vi-VN')}</td>
-                              <td className="py-4 text-center pr-4">
+                              <td className="py-4 px-4 text-center">
                                 <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${appeal.status === 'pending' ? 'bg-amber-100 text-amber-700' : appeal.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                                   {appeal.status === 'pending' ? 'Đang chờ duyệt' : appeal.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}
                                 </span>
+                              </td>
+                              <td className="px-4 py-4 pr-4 max-w-xs truncate text-xs font-medium text-slate-500 dark:text-slate-400" title={appeal.admin_response || ''}>
+                                {appeal.admin_response ? appeal.admin_response : '-'}
                               </td>
                             </tr>
                           ))}
@@ -763,8 +765,16 @@ export default function StudentDashboard() {
                                     <p className="text-lg font-black text-cyan-600 dark:text-cyan-400">{submission.grade}</p>
                                   </div>
                                 ) : (
-                                  <div className="pl-3 border-l border-slate-200 dark:border-slate-800">
+                                  <div className="pl-3 border-l border-slate-200 dark:border-slate-800 flex flex-col items-center gap-1.5">
                                     <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">Chờ chấm</span>
+                                    {!dInfo.isOverdue && (
+                                      <button
+                                        onClick={() => setSelectedAssignment(assign)}
+                                        className="text-[10px] text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-bold hover:underline"
+                                      >
+                                        Nộp lại
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
