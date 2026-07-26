@@ -101,6 +101,23 @@ export const createClass = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Không thể tạo lớp học', error);
+    
+    // Tự động tìm các học sinh đang có class_name trùng với lớp vừa tạo (từ "lớp tạm")
+    // và gán họ vào bảng student_classes
+    const { data: matchingStudents } = await supabaseAdmin
+      .from('students')
+      .select('student_id')
+      .ilike('class_name', `%${class_name.trim()}%`);
+      
+    if (matchingStudents && matchingStudents.length > 0) {
+      const inserts = matchingStudents.map(st => ({
+        class_id: data.class_id,
+        student_id: st.student_id
+      }));
+      await supabaseAdmin.from('student_classes').upsert(inserts, { onConflict: 'student_id,class_id' });
+      await Promise.all(matchingStudents.map(st => syncStudentClassesData(st.student_id)));
+    }
+
     await logActivity('admin', req.user?.id, 'CREATE', 'classes', `Tạo lớp học mới: ${class_name}`);
     return successResponse(res, data, 'Tạo lớp học thành công');
   } catch (error) {
