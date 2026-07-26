@@ -21,4 +21,8 @@ router.post('/grade-appeals', submitGradeAppeal);
 router.get('/parent/profile', getParentProfile);
 router.get('/parent/dashboard', getParentDashboard);
 
+// Leave Requests
+router.get('/leave-requests', studentController.getLeaveRequests);
+router.post('/leave-requests', studentController.submitLeaveRequest);
+
 export default router;

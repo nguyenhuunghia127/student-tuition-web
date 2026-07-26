@@ -220,7 +220,7 @@ export const getDashboard = async (req, res) => {
     // 2. Tải tất cả dữ liệu liên quan đồng thời, chống sập trang khi thiếu FK
     const [
       feesRes, paymentsRes, schedulesRes, gradesRes,
-      assignmentsRes, submissionsRes, notifsRes, appealsRes, docsRes, attendancesRes
+      assignmentsRes, submissionsRes, notifsRes, appealsRes, docsRes, attendancesRes, leavesRes
     ] = await Promise.all([
       supabaseAdmin.from('tuition_fees').select('*').eq('student_id', student_id).order('due_date', { ascending: true }).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('payment_history').select('*').eq('student_id', student_id).order('paid_at', { ascending: false }).then(r => r).catch(() => ({ data: [] })),
@@ -234,7 +234,8 @@ export const getDashboard = async (req, res) => {
       supabaseAdmin.from('notifications').select('*').order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('grade_appeals').select('*').eq('student_id', student_id).order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('documents').select('*').then(r => r).catch(() => ({ data: [] })),
-      supabaseAdmin.from('attendances').select('*, schedules(title, study_date, class_name, subject_name)').eq('student_id', student_id).then(r => r).catch(() => ({ data: [] }))
+      supabaseAdmin.from('attendances').select('*, schedules(title, study_date, class_name, subject_name)').eq('student_id', student_id).then(r => r).catch(() => ({ data: [] })),
+      supabaseAdmin.from('leave_requests').select('*').eq('student_id', student_id).order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] }))
     ]);
 
     // Lọc lịch học thuộc về học sinh (theo class_id, class_name hoặc target_id)
@@ -479,5 +480,32 @@ export const submitGradeAppeal = async (req, res) => {
     return successResponse(res, data, 'Gửi đơn phúc khảo thành công, vui lòng chờ Admin duyệt.');
   } catch (error) {
     return errorResponse(res, 'Lỗi gửi đơn phúc khảo', error, 500);
+  }
+};
+
+// ==========================================
+// 6. LEAVE REQUESTS (STUDENT)
+// ==========================================
+export const getLeaveRequests = async (req, res) => {
+  const { student_id } = req.query;
+  try {
+    const { data, error } = await supabaseAdmin.from('leave_requests').select('*').eq('student_id', student_id).order('created_at', { ascending: false });
+    if (error) return errorResponse(res, 'Lỗi tải đơn xin phép', error);
+    return successResponse(res, data || [], 'Thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};
+
+export const submitLeaveRequest = async (req, res) => {
+  const { student_id, leave_date, reason } = req.body;
+  if (!student_id || !leave_date || !reason) return errorResponse(res, 'Thiếu thông tin xin phép');
+  
+  try {
+    const { data, error } = await supabaseAdmin.from('leave_requests').insert({ student_id, leave_date, reason }).select().single();
+    if (error) return errorResponse(res, 'Lỗi nộp đơn xin phép', error);
+    return successResponse(res, data, 'Nộp đơn xin phép thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
   }
 };

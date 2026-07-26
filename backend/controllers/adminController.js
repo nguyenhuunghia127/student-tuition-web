@@ -1574,3 +1574,38 @@ export const downloadGradeTemplate = (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename=mau_import_diem.xlsx');
   return res.send(buffer);
 };
+
+// ==========================================
+// 10. LEAVE REQUESTS (ADMIN)
+// ==========================================
+export const getAllLeaveRequests = async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from('leave_requests').select('*, students(full_name, class_name, classes(class_name))').order('created_at', { ascending: false }).limit(1000);
+    if (error) return errorResponse(res, 'Lỗi lấy danh sách nghỉ phép', error);
+    return successResponse(res, data || [], 'Thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};
+
+export const updateLeaveStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const { data, error } = await supabaseAdmin.from('leave_requests').update({ status }).eq('request_id', id).select().single();
+    if (error) return errorResponse(res, 'Lỗi cập nhật', error);
+    
+    // Gửi thông báo cho học sinh
+    await supabaseAdmin.from('notifications').insert({
+      title: 'Kết quả Đơn xin phép',
+      message: `Đơn xin phép nghỉ của bạn đã bị ${status === 'approved' ? 'chấp thuận' : 'từ chối'}`,
+      target_type: 'student',
+      target_id: `student:${data.student_id}`,
+      is_global: false
+    });
+    
+    return successResponse(res, data, 'Cập nhật thành công');
+  } catch (error) {
+    return errorResponse(res, 'Lỗi hệ thống', error, 500);
+  }
+};

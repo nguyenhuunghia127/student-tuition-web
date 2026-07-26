@@ -443,10 +443,15 @@ export default function StudentDashboard() {
                               <td className="px-4 whitespace-nowrap py-3.5 text-xs font-mono">{new Date(history.paid_at).toLocaleString('vi-VN')}</td>
                               <td className="px-4 whitespace-nowrap py-3.5 font-bold text-slate-900 dark:text-white">{history.tuition_fees?.title || 'Khoản thu cũ'}</td>
                               <td className="px-4 whitespace-nowrap py-3.5">{Number(history.amount).toLocaleString('vi-VN')} VND</td>
-                              <td className="px-4 whitespace-nowrap py-3.5">
-                                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                                  Thành công
+                              <td className="px-4 whitespace-nowrap py-3.5 flex items-center gap-3">
+                                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${history.status === 'pending' ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+                                  {history.status === 'pending' ? 'Chờ duyệt' : 'Thành công'}
                                 </span>
+                                {history.status !== 'pending' && (
+                                  <button onClick={() => generateInvoice(history, data.student)} className="text-[10px] flex items-center gap-1 font-bold text-cyan-600 hover:text-cyan-800 cursor-pointer">
+                                    <Download className="w-3 h-3" /> Tải PDF
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -793,6 +798,12 @@ export default function StudentDashboard() {
                   </div>
                 )}
               </div>
+            )}
+
+            
+            {/* 2.6 TAB XIN NGHỈ PHÉP */}
+            {activeTab === 'leaves' && (
+              <StudentLeaveRequests data={data} onLeaveSubmit={() => fetchDashboardData(data.student)} />
             )}
 
             {/* 2.5 TAB THÔNG BÁO */}

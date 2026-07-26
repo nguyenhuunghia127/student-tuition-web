@@ -87,4 +87,8 @@ router.get('/stats', adminController.getStats);
 router.get('/templates/students', adminController.downloadStudentTemplate);
 router.get('/templates/grades', adminController.downloadGradeTemplate);
 
+// Leave Requests
+router.get('/leave-requests', adminController.getAllLeaveRequests);
+router.put('/leave-requests/:id/status', adminController.updateLeaveStatus);
+
 export default router;

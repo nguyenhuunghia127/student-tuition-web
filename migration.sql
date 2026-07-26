@@ -1,7 +1,7 @@
--- 1. Cho phép class_id được phép rỗng và cập nhật Constraint để tự động chuyển về NULL khi xóa lớp (Thay vì báo lỗi khóa)
-ALTER TABLE public.students DROP CONSTRAINT IF EXISTS students_class_id_fkey;
-ALTER TABLE public.students ALTER COLUMN class_id DROP NOT NULL;
-ALTER TABLE public.students ADD CONSTRAINT students_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(class_id) ON DELETE SET NULL;
+-- 1. (BỎ QUA VÌ BẠN ĐÃ XÓA CỘT NÀY RỒI): Cho phép class_id được phép rỗng và cập nhật Constraint
+-- ALTER TABLE public.students DROP CONSTRAINT IF EXISTS students_class_id_fkey;
+-- ALTER TABLE public.students ALTER COLUMN class_id DROP NOT NULL;
+-- ALTER TABLE public.students ADD CONSTRAINT students_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(class_id) ON DELETE SET NULL;
 
 -- 2. Thêm trạng thái 'pending' vào check constraint của tuition_fees và payment_history để hỗ trợ chức năng "Chờ duyệt"
 ALTER TABLE public.tuition_fees DROP CONSTRAINT IF EXISTS tuition_fees_status_check;

@@ -8,9 +8,12 @@ import {
   Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight, LayoutGrid
 } from 'lucide-react'
 import { API_URL } from '../config.js'
+import { generateInvoice } from '../utils/pdfGenerator';
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import AdminDocuments from '../components/AdminDocuments.jsx'
+import RevenueChart from '../components/RevenueChart.jsx'
+import AdminLeaveRequests from '../components/AdminLeaveRequests.jsx'
 
 export default function AdminDashboard() {
   const [adminUser, setAdminUser] = useState(null)
@@ -29,7 +32,8 @@ export default function AdminDashboard() {
     pendingGrading: 0,
     gradedSubmissions: 0,
     totalSubmissions: 0,
-    averageGPA: 0
+    averageGPA: 0,
+    revenueChartData: []
   })
   const [classes, setClasses] = useState([])
   const [students, setStudents] = useState([])
@@ -1290,6 +1294,8 @@ export default function AdminDashboard() {
         {/* Header removed as requested */}
 
         {activeSubTab === 'documents' && <AdminDocuments adminUser={adminUser} fetchStats={fetchStats} />}
+                        {activeSubTab === 'leaves' && <AdminLeaveRequests session={{access_token: localStorage.getItem('supabase_token')}} />}
+        
         {/* 5.1 STATS (BENTO GRID DASHBOARD) */}
         {activeSubTab === 'stats' && (
           <motion.div 
@@ -1399,6 +1405,8 @@ export default function AdminDashboard() {
                 </p>
               </motion.div>
             </div>
+
+            <RevenueChart data={stats.revenueChartData} paidAmount={stats.paidAmount} unpaidAmount={stats.unpaidAmount} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               
@@ -2789,12 +2797,18 @@ export default function AdminDashboard() {
                                 {h.tuition_fees?.title || 'N/A'}
                               </td>
                               <td className="p-4">
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400 block mb-1">
                                   {Number(h.amount).toLocaleString('vi-VN')} đ
                                 </span>
+                                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Thành công</span>
                               </td>
                               <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
-                                {new Date(h.paid_at).toLocaleString('vi-VN')}
+                                <div className="flex items-center justify-between">
+                                  <span>{new Date(h.paid_at).toLocaleString('vi-VN')}</span>
+                                  <button onClick={() => generateInvoice(h, h.students)} className="ml-3 p-1.5 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors" title="Tải Biên Lai PDF">
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                         ))}
