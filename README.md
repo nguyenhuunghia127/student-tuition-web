@@ -11,8 +11,8 @@
 Một ứng dụng web quản lý học phí và học tập toàn diện, hiện đại, được thiết kế chuyên biệt cho trường học, trung tâm ngoại ngữ và cơ sở giáo dục. Giao diện được thiết kế theo phong cách **Glassmorphism** sang trọng kết hợp layout **Bento Grid** hiện đại, mang lại trải nghiệm người dùng tuyệt vời.
 
 Hệ thống cung cấp **ba cổng thông tin riêng biệt** nhằm tối ưu hóa trải nghiệm người dùng:
-- 👨‍💼 **Cổng Quản Trị (Admin):** Quản lý toàn bộ dữ liệu hệ thống (học sinh, giáo viên, học phí, bài tập, tài liệu).
-- 👨‍🎓 **Cổng Học Sinh (Student):** Tra cứu thông tin cá nhân, nộp bài tập, tra cứu điểm số và thanh toán học phí bằng mã VietQR.
+- 👨‍💼 **Cổng Quản Trị (Admin):** Quản lý toàn bộ dữ liệu hệ thống (học sinh, lớp học đa môn, học phí, bài tập, tài liệu, điểm danh, VietQR).
+- 👨‍🎓 **Cổng Học Sinh (Student):** Tra cứu thông tin cá nhân, nộp bài tập, tra cứu điểm số và thanh toán học phí tự động qua mã VietQR.
 - 👨‍👩‍👧‍👦 **Cổng Phụ Huynh (Parent):** Theo dõi tiến độ học tập của tất cả các con, nhận thông báo, kiểm tra điểm số và lịch sử thanh toán học phí.
 
 ---
@@ -27,43 +27,34 @@ Hệ thống cung cấp **ba cổng thông tin riêng biệt** nhằm tối ưu 
 ## ✨ Tính Năng Nổi Bật
 
 ### 👨‍💼 Dành Cho Ban Quản Trị (Admin)
-Hệ thống số hóa toàn diện quy trình vận hành từ đầu đến cuối với giao diện tối ưu:
+Hệ thống số hóa toàn diện quy trình vận hành từ đầu đến cuối với giao diện tối ưu và chặt chẽ:
 
-*   **📊 Bento Dashboard Thông Minh:** Bảng điều khiển thiết kế dạng Bento Box hiện đại, kết hợp Glassmorphism. Cung cấp biểu đồ trực quan, số liệu thời gian thực và tự động bắt mọi log hoạt động của hệ thống.
-*   **👨‍🎓 Quản Lý Hồ Sơ Học Sinh:** Lưu trữ thông tin cá nhân. Hỗ trợ gán nhiều lớp học cùng lúc cho một học sinh. Hệ thống tìm kiếm, lọc theo lớp học, khóa học siêu tốc.
-*   **💰 Quản Lý Học Phí & Công Nợ:** Khởi tạo kỳ thu học phí cho toàn trường, khối, lớp hoặc cá nhân. Tự động chuyển trạng thái ngay khi có giao dịch thanh toán xác nhận thủ công hoặc tự động.
-*   **📈 Sổ Điểm Điện Tử:** Hệ thống quản lý điểm số đa dạng (15 phút, 1 tiết, giữa kỳ, cuối kỳ). Cho phép cấu hình trọng số môn học. Tự động tính toán điểm trung bình.
-*   **📅 Thời Khoá Biểu Linh Hoạt:** Hiển thị dưới dạng lịch trực quan. Quản lý các ca học, môn học, phòng học, điểm danh.
-*   **📚 Quản Lý Bài Tập Về Nhà:** Giao bài tập kèm file đính kèm. Đặt thời hạn (Deadline). Quản lý bài nộp, cho phép chấm điểm và gửi nhận xét phản hồi trực tiếp.
-*   **📁 Kho Tài Liệu (Document Repo):** Hệ thống lưu trữ và chia sẻ tài liệu như một File Explorer thực thụ (tạo thư mục, upload file, phân quyền xem tài liệu theo khối/lớp hoặc dùng chung).
-*   **🔔 Trung Tâm Thông Báo (Notifications):** 
-    - **Hộp Thư (Inbox):** Nhận thông báo tự động từ hệ thống ngay khi học sinh nộp bài tập hoặc thanh toán học phí.
-    - **Phát Thông Báo:** Gửi thông báo hàng loạt đến toàn trường hoặc các lớp học/cá nhân cụ thể.
+*   **📊 Bento Dashboard Thông Minh:** Bảng điều khiển thiết kế dạng Bento Box hiện đại, cung cấp biểu đồ trực quan, số liệu thời gian thực và ghi lại mọi nhật ký hoạt động hệ thống.
+*   **🏫 Quản Lý Lớp Học & Môn Học Đa Dạng:**
+    *   Quản lý lớp học linh hoạt (chọn 1-3 môn: Toán, Lý, Hóa).
+    *   Hỗ trợ **"Lớp tạm"**: Tự động phát hiện học sinh chưa có lớp chính thức và cho phép Admin khởi tạo lớp trực tiếp, sau đó hệ thống tự động gom (auto-assign) học sinh vào lớp để đồng bộ học phí siêu nhanh.
+*   **👨‍🎓 Quản Lý Hồ Sơ Học Sinh:** Lưu trữ thông tin cá nhân. Hỗ trợ gán nhiều lớp học cùng lúc cho một học sinh (Mô hình N-N qua bảng `student_classes`). 
+*   **💰 Quản Lý Học Phí & VietQR:** 
+    *   Giao học phí thông minh (Assign Advanced): Giao nợ tự động theo môn học (tách tháng) cho toàn lớp hoặc từng học sinh. Ràng buộc học sinh phải học môn đó mới được tính tiền.
+    *   **Thanh toán VietQR:** Tích hợp VietQR Open API chuẩn Napas247 tạo mã QR chứa số tiền và nội dung chính xác. Nhận diện và cập nhật trạng thái ngay sau khi thanh toán.
+*   **📈 Sổ Điểm Điện Tử & Phúc Khảo:** Hệ thống quản lý điểm số tự động tính toán điểm trung bình. Xử lý khép kín quy trình Phúc khảo (Appeals) của học sinh.
+*   **📅 Thời Khoá Biểu & Điểm Danh:** Quản lý lịch học, phòng học. Giáo viên điểm danh bằng cách check box dễ dàng.
+*   **📚 Quản Lý Bài Tập Về Nhà:** Giao bài tập kèm file đính kèm. Đặt thời hạn (Deadline). Quản lý bài nộp, cho phép chấm điểm và gửi nhận xét.
+*   **📁 Kho Tài Liệu (Document Repo):** Hệ thống lưu trữ và chia sẻ tài liệu tương tự Google Drive, phân quyền xem tài liệu theo khối/lớp hoặc dùng chung toàn trường.
+*   **🔔 Trung Tâm Thông Báo (Notifications):** Gửi thông báo hàng loạt đến toàn trường, các lớp học, hoặc qua SĐT của phụ huynh/học sinh.
 
 ### 👨‍🎓 Dành Cho Học Sinh (Student)
-Giao diện tối ưu trải nghiệm người dùng (UX/UI), hỗ trợ **Dark/Light mode**, hiển thị tốt trên mọi thiết bị (Responsive):
+Giao diện tối ưu trải nghiệm (UX/UI), hỗ trợ **Dark/Light mode**, hiển thị tốt trên mọi thiết bị di động/Tablet:
 
-*   **🏠 Bảng Điều Khiển Học Tập:** Tra cứu thông tin cá nhân, kết quả học tập, điểm trung bình (GPA) và xếp loại tự động.
-*   **💳 Thanh Toán Nhanh Chóng (VietQR):** Hiển thị rõ ràng các khoản chưa thanh toán. Tích hợp thanh toán bằng mã **VietQR** tự động tạo mã QR chứa số tiền và nội dung chuyển khoản chính xác, giúp phụ huynh/học sinh quét mã thanh toán bằng mọi app ngân hàng.
-*   **📜 Lịch Sử Giao Dịch:** Tra cứu và kiểm tra minh bạch mọi giao dịch quá khứ.
-*   **📅 Xem Lịch Học:** Tra cứu thời khóa biểu sắp diễn ra theo tuần.
-*   **📝 Quản Lý Bài Tập:** Nhận thông báo bài tập mới, nhắc nhở deadline. Giao diện nộp file trực quan, hỗ trợ nhiều định dạng. Khi nộp bài xong, hệ thống tự động báo cho Admin.
-*   **📂 Tải Tài Liệu:** Truy cập vào Kho Tài Liệu do nhà trường cung cấp theo đúng phân quyền (chung hoặc nội bộ lớp).
-*   **⚖️ Hệ Thống Phúc Khảo:** Gửi yêu cầu phúc khảo điểm số trực tiếp từ giao diện học sinh.
-
-### 👨‍👩‍👧‍👦 Dành Cho Phụ Huynh (Parent)
-Cổng thông tin riêng biệt để theo dõi nhiều học sinh cùng lúc:
-
-*   **📱 Đăng Nhập Tiện Lợi:** Đăng nhập an toàn, không cần ghi nhớ nhiều tài khoản phức tạp.
-*   **👨‍👧‍👦 Quản Lý Nhiều Con Em:** Theo dõi thông tin, học phí, và kết quả học tập của nhiều học sinh (con) trong cùng một tài khoản.
-*   **💸 Theo Dõi Học Phí:** Nhận thông báo ngay lập tức về các khoản thu học phí, kiểm tra lịch sử thanh toán của con cái một cách minh bạch.
-*   **📊 Theo Dõi Học Tập:** Xem điểm số, kết quả bài tập về nhà và tỷ lệ đi học đầy đủ để có thể đồng hành cùng con em trong quá trình học.
+*   **💳 Thanh Toán Nhanh Chóng (VietQR):** Hiển thị rõ ràng các khoản chưa thanh toán. Quét mã QR trực tiếp bằng mọi app ngân hàng để nộp tiền.
+*   **📝 Quản Lý Bài Tập:** Nhận thông báo bài tập mới. Giao diện nộp file bài làm trực quan, tự động báo cho Admin.
+*   **🏠 Bảng Điều Khiển Học Tập:** Tra cứu thông tin cá nhân, điểm số, lịch học, tải tài liệu. Yêu cầu phúc khảo điểm số ngay trên app.
 
 ---
 
 ## 🛠️ Công Nghệ Sử Dụng
 
-Kiến trúc **Client-Server** với Backend API tách rời hoàn toàn:
+Kiến trúc **Client-Server** với Backend API tách rời hoàn toàn (Microservices-oriented):
 
 ### Frontend
 *   **Core:** React 19, Vite 8 (Tốc độ build siêu việt)
@@ -74,11 +65,10 @@ Kiến trúc **Client-Server** với Backend API tách rời hoàn toàn:
 
 ### Backend API
 *   **Core:** Node.js v22+, Express.js
-*   **Database:** Supabase (PostgreSQL) 
-*   **Authentication:** JSON Web Tokens (JWT) cho tính năng đăng nhập bảo mật
-*   **Payment Gateway:** VietQR Generator (tạo mã QR động)
-*   **File Upload:** `multer` (Upload file cục bộ)
-*   **Bảo mật:** `cors`, `helmet`, `xss-clean`, `express-rate-limit`, `dotenv`
+*   **Database:** Supabase (PostgreSQL) theo chuẩn 3NF và đảm bảo tính toàn vẹn ACID.
+*   **Authentication:** JSON Web Tokens (JWT) kết hợp Supabase Auth.
+*   **Payment Gateway:** VietQR Generator (Open API)
+*   **Bảo mật:** `cors`, `helmet`, `xss-clean`, `express-rate-limit`
 
 ---
 
@@ -89,24 +79,21 @@ student-tuition-web/
 ├── frontend/                     # Ứng dụng Frontend (React/Vite)
 │   ├── public/                   # Tài nguyên tĩnh
 │   ├── src/
-│   │   ├── components/           # Components tái sử dụng (ThemeToggle, Modals...)
-│   │   ├── pages/                # Các trang chính (AdminDashboard, StudentDashboard, ParentDashboard...)
+│   │   ├── components/           # Components tái sử dụng
+│   │   ├── pages/                # Các trang chính (Admin, Student, Parent Dashboard)
 │   │   ├── App.jsx               # Routing chính
-│   │   ├── config.js             # File config (Biến môi trường)
-│   │   └── index.css             # Tailwind & Base CSS (Custom Animations, Glassmorphism classes)
+│   │   └── index.css             # Tailwind & Custom Animations
 │   └── package.json              
 │
 ├── backend/                      # Ứng dụng Backend (Express API)
-│   ├── config/                   # Thiết lập Supabase
-│   ├── controllers/              # Logic xử lý chính (adminController, paymentController, studentController...)
-│   ├── middlewares/              # Middleware bảo mật (authMiddleware, uploadMiddleware)
+│   ├── config/                   # Thiết lập Database/Supabase
+│   ├── controllers/              # Logic xử lý chính (admin, student, payment, document...)
+│   ├── middlewares/              # Middleware bảo mật
 │   ├── routes/                   # Định tuyến API
-│   ├── utils/                    # Các hàm tiện ích (logger)
 │   ├── server.js                 # Entry point
-│   ├── app.js                    # Cấu hình Express
-│   └── package.json              
+│   └── app.js                    # Cấu hình Express
 │
-└── database.sql                  # Script thiết lập Database ban đầu (PostgreSQL)
+└── database.sql                  # Script thiết lập Database chuẩn hóa (PostgreSQL)
 ```
 
 ---
@@ -115,76 +102,51 @@ student-tuition-web/
 
 ### 📋 Yêu cầu tiên quyết:
 *   [Node.js](https://nodejs.org/) (phiên bản 18+ hoặc 22+)
-*   Git
 *   Tài khoản [Supabase](https://supabase.com/)
 
 ### Bước 1: Khởi tạo Database (Supabase)
-1. Đăng nhập Supabase và tạo Project mới.
-2. Tại **SQL Editor** -> **New query**, dán toàn bộ nội dung của file `database.sql` và nhấn **Run**.
-3. Vào **Project Settings -> API**, sao chép `Project URL`, `Service Role (secret) Key` và `anon/public key`.
+1. Tạo Project trên Supabase.
+2. Mở **SQL Editor** -> dán nội dung file `database.sql` và nhấn **Run**.
+3. Vào **Project Settings -> API**, copy `Project URL` và `Service Role (secret) Key`.
 
 ### Bước 2: Thiết lập Backend
 ```bash
 git clone https://github.com/nguyenhuunghia127/student-tuition-web.git
 cd student-tuition-web/backend
 ```
-*Tạo file `.env` chứa các cấu hình quan trọng*:
+Tạo file `.env`:
 ```env
 PORT=5000
 SUPABASE_URL=https://[PROJECT-ID].supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_secret_role_key
-SUPABASE_ANON_KEY=your_anon_key
 JWT_SECRET=your_super_secret_jwt_key
 
-# Thông tin tài khoản ngân hàng để tạo mã VietQR
+# Cấu hình thanh toán VietQR mặc định
 BANK_ID=Vikki Digital Bank
 ACCOUNT_NO=935042177
 ACCOUNT_NAME=NGUYEN HUU CHANH
 ```
-*Cài đặt và chạy*:
-```bash
-npm install
-npm run dev
-```
+Chạy backend: `npm install && npm run dev`
 
 ### Bước 3: Thiết lập Frontend
-Mở một terminal mới:
 ```bash
-cd student-tuition-web/frontend
+cd ../frontend
 ```
-*Tạo file `.env`*:
+Tạo file `.env`:
 ```env
 VITE_SUPABASE_URL=https://[PROJECT-ID].supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_API_URL=http://localhost:5000
 ```
-*Cài đặt và chạy*:
-```bash
-npm install
-npm run dev
-```
-*Giao diện Frontend chạy mặc định tại `http://localhost:5173` và tự động kết nối với API Backend tại `http://localhost:5000`.*
+Chạy frontend: `npm install && npm run dev`
 
 ---
 
 ## ☁️ Hướng Dẫn Triển Khai (Deployment)
-
-### 1. Triển khai Backend (Render / Heroku)
-1. Tạo Web Service mới trên [Render](https://render.com).
-2. Kết nối tới Repository GitHub của bạn.
-3. Cài đặt Root Directory: `backend`.
-4. Build Command: `npm install`, Start Command: `node server.js`.
-5. **ĐẶC BIỆT QUAN TRỌNG:** Bổ sung toàn bộ biến môi trường ở bước 2 (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET`, thông tin `BANK_ID`...) vào tab Environment. Nếu thiếu `JWT_SECRET`, server sẽ báo lỗi *Lỗi cấu hình Server* khi đăng nhập.
-
-### 2. Triển khai Frontend (Vercel / Netlify)
-1. Khởi tạo Project mới trên [Vercel](https://vercel.com) từ GitHub.
-2. Chọn Root Directory là `frontend`. Vercel sẽ tự nhận diện đây là dự án Vite.
-3. Thiết lập biến môi trường `VITE_API_URL` trỏ tới đường dẫn Backend bạn vừa deploy (Ví dụ: `https://tuition-backend-api.onrender.com`).
-4. Thêm `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`.
+1. **Backend:** Deploy thư mục `backend` lên **Render**, cấu hình Environment Variables đầy đủ. Command: `npm install` và `node server.js`.
+2. **Frontend:** Deploy thư mục `frontend` lên **Vercel**, điền `VITE_API_URL` trỏ tới link Render backend của bạn.
 
 ---
 
 ## 📄 Bản Quyền & Giấy Phép (License)
-
-Mã nguồn được phân phối cho mục đích học tập, giáo dục và có thể được tùy chỉnh để phục vụ nội bộ trường học/trung tâm của riêng bạn. 
-Vui lòng giữ lại thông tin tác giả nguyên gốc nếu có chia sẻ lại. Cảm ơn bạn!
+Mã nguồn được phân phối cho mục đích học tập, giáo dục và có thể được tùy chỉnh để phục vụ nội bộ. Vui lòng giữ lại thông tin tác giả nguyên gốc nếu có chia sẻ lại. Cảm ơn bạn!
