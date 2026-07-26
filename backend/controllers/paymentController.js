@@ -128,16 +128,16 @@ export const confirmQRPayment = async (req, res) => {
   }
 
   try {
-    // Cập nhật trạng thái học phí sang đã thanh toán
+    // Cập nhật trạng thái học phí sang chờ duyệt
     const { error: feeErr } = await supabaseAdmin
       .from('tuition_fees')
-      .update({ status: 'paid' })
+      .update({ status: 'pending' })
       .eq('fee_id', fee_id)
       .eq('student_id', student_id);
 
     if (feeErr) return errorResponse(res, 'Lỗi cập nhật trạng thái học phí', feeErr);
 
-    // Lưu vào lịch sử thanh toán
+    // Lưu vào lịch sử thanh toán chờ duyệt
     const { data: payment, error: payErr } = await supabaseAdmin
       .from('payment_history')
       .insert({
@@ -146,7 +146,7 @@ export const confirmQRPayment = async (req, res) => {
         amount: Number(amount),
         payment_method: 'qr_transfer',
         transaction_ref: transaction_ref || `QR-${Date.now()}`,
-        status: 'success',
+        status: 'pending',
         paid_at: new Date().toISOString()
       })
       .select()

@@ -103,11 +103,14 @@ export const createClass = async (req, res) => {
     if (error) return errorResponse(res, 'Không thể tạo lớp học', error);
     
     // Tự động tìm các học sinh đang có class_name trùng với lớp vừa tạo (từ "lớp tạm")
-    // và gán họ vào bảng student_classes
-    const { data: matchingStudents } = await supabaseAdmin
+    // và gán họ vào bảng student_classes (Fix lỗi wildcard ilike)
+    const { data: allStudents } = await supabaseAdmin
       .from('students')
-      .select('student_id')
-      .ilike('class_name', `%${class_name.trim()}%`);
+      .select('student_id, class_name');
+      
+    const targetName = class_name.trim();
+    const regex = new RegExp(`\\b${targetName}\\b`, 'i');
+    const matchingStudents = (allStudents || []).filter(st => regex.test(st.class_name));
       
     if (matchingStudents && matchingStudents.length > 0) {
       const inserts = matchingStudents.map(st => ({
@@ -393,17 +396,20 @@ export const updateStudent = async (req, res) => {
 
     if (error) return errorResponse(res, 'Không thể cập nhật thông tin học sinh', error);
     
-    // Many-to-Many Assignment Update
+    // Many-to-Many Assignment Update (Sử dụng Transaction an toàn)
     if (Array.isArray(class_ids)) {
-      // Delete existing
-      await supabaseAdmin.from('student_classes').delete().eq('student_id', id);
-      // Insert new
-      if (class_ids.length > 0) {
-        const inserts = class_ids.map(cid => ({
-          student_id: id,
-          class_id: cid
-        }));
-        await supabaseAdmin.from('student_classes').insert(inserts);
+      const { error: rpcError } = await supabaseAdmin.rpc('update_student_classes', {
+        p_student_id: id,
+        p_class_ids: class_ids
+      });
+      if (rpcError) {
+        console.error('Lỗi transaction update_student_classes:', rpcError);
+        // Fallback to manual if RPC doesn't exist yet
+        await supabaseAdmin.from('student_classes').delete().eq('student_id', id);
+        if (class_ids.length > 0) {
+          const inserts = class_ids.map(cid => ({ student_id: id, class_id: cid }));
+          await supabaseAdmin.from('student_classes').insert(inserts);
+        }
       }
     }
 
@@ -1183,14 +1189,26 @@ export const payManual = async (req, res) => {
 
     await supabaseAdmin.from('tuition_fees').update({ status: 'paid' }).eq('fee_id', fee_id);
 
-    await supabaseAdmin.from('payment_history').insert({
-      student_id: fee.student_id,
-      fee_id: fee.fee_id,
-      amount: fee.amount,
-      payment_method: 'cash',
-      status: 'success',
-      paid_at: new Date().toISOString()
-    });
+    // Kiểm tra xem có giao dịch đang chờ duyệt không (từ VietQR)
+    const { data: existingPayment } = await supabaseAdmin
+      .from('payment_history')
+      .select('payment_id')
+      .eq('fee_id', fee_id)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (existingPayment) {
+      await supabaseAdmin.from('payment_history').update({ status: 'success', paid_at: new Date().toISOString() }).eq('payment_id', existingPayment.payment_id);
+    } else {
+      await supabaseAdmin.from('payment_history').insert({
+        student_id: fee.student_id,
+        fee_id: fee.fee_id,
+        amount: fee.amount,
+        payment_method: 'cash',
+        status: 'success',
+        paid_at: new Date().toISOString()
+      });
+    }
 
     await logActivity('admin', req.user?.id, 'PAYMENT', 'tuition_fees', `Xác nhận thanh toán tiền mặt cho khoản phí: ${fee.title}`);
     return successResponse(res, null, 'Xác nhận đã thu tiền thành công');
