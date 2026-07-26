@@ -7,7 +7,9 @@ import {
   payTuition,
   submitGradeAppeal,
   getParentProfile,
-  getParentDashboard
+  getParentDashboard,
+  getLeaveRequests,
+  submitLeaveRequest
 } from '../controllers/studentController.js';
 
 const router = express.Router();
@@ -22,7 +24,7 @@ router.get('/parent/profile', getParentProfile);
 router.get('/parent/dashboard', getParentDashboard);
 
 // Leave Requests
-router.get('/leave-requests', studentController.getLeaveRequests);
-router.post('/leave-requests', studentController.submitLeaveRequest);
+router.get('/leave-requests', getLeaveRequests);
+router.post('/leave-requests', submitLeaveRequest);
 
 export default router;

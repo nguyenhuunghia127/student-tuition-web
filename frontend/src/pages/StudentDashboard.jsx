@@ -4,11 +4,15 @@ import {
   Search, BookOpen, Calendar, DollarSign, Award, Bell, 
   LogOut, Upload, CheckCircle2, AlertTriangle, Clock, 
   CreditCard, ExternalLink, Shield, User, Loader2, RefreshCw,
-  Sun, Moon, Menu, X, FolderOpen, Link as LinkIcon, MessageSquare, CheckSquare
+  Sun, Moon, Menu, X, FolderOpen, Link as LinkIcon, MessageSquare, CheckSquare,
+  Download
 } from 'lucide-react'
 import { API_URL } from '../config.js'
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import StudentLeaveRequests from '../components/StudentLeaveRequests.jsx'
+import { generateInvoice } from '../utils/pdfGenerator.js'
+
 
 export default function StudentDashboard() {
   const [student, setStudent] = useState(null)
@@ -323,6 +327,7 @@ export default function StudentDashboard() {
             { id: 'schedule', label: 'Thời Khóa Biểu', icon: Calendar },
             { id: 'grades', label: 'Bảng Điểm', icon: Award },
             { id: 'assignments', label: 'Bài Tập Về Nhà', icon: BookOpen },
+            { id: 'leaves', label: 'Xin Nghỉ Phép', icon: MessageSquare },
             { id: 'notifications', label: 'Thông Báo Mới', icon: Bell }
           ].map(tab => {
             const Icon = tab.icon

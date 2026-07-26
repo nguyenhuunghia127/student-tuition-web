@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Search, Loader2 } from 'lucide-react';
-const VITE_API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from '../config.js';
 
 export default function AdminLeaveRequests({ session }) {
   const [requests, setRequests] = useState([]);
@@ -9,7 +9,7 @@ export default function AdminLeaveRequests({ session }) {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch(`${VITE_API_URL}/api/admin/leave-requests`, {
+      const response = await fetch(`${API_URL}/api/admin/leave-requests`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -32,7 +32,7 @@ export default function AdminLeaveRequests({ session }) {
   const handleUpdateStatus = async (id, status) => {
     if (!window.confirm(`Bạn chắc chắn muốn ${status === 'approved' ? 'chấp thuận' : 'từ chối'} đơn này?`)) return;
     try {
-      const response = await fetch(`${VITE_API_URL}/api/admin/leave-requests/${id}/status`, {
+      const response = await fetch(`${API_URL}/api/admin/leave-requests/${id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

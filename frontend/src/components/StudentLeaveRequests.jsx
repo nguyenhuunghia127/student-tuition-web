@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Loader2, Plus, Send } from 'lucide-react';
-const VITE_API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from '../config.js';
 
 export default function StudentLeaveRequests({ data, onLeaveSubmit }) {
   const [showForm, setShowForm] = useState(false);
@@ -16,7 +16,7 @@ export default function StudentLeaveRequests({ data, onLeaveSubmit }) {
     }
     setSubmitting(true);
     try {
-      const response = await fetch(`${VITE_API_URL}/api/student/leave-requests`, {
+      const response = await fetch(`${API_URL}/api/student/leave-requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

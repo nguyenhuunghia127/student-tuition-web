@@ -4,11 +4,12 @@ import {
   Search, BookOpen, Calendar, DollarSign, Award, Bell, 
   LogOut, Upload, CheckCircle2, AlertTriangle, Clock, 
   CreditCard, ExternalLink, Shield, User, Loader2, RefreshCw,
-  Sun, Moon, Menu, X, FolderOpen, Link as LinkIcon, MessageSquare, CheckSquare
+  Sun, Moon, Menu, X, FolderOpen, Link as LinkIcon, MessageSquare, CheckSquare, Download
 } from 'lucide-react'
 import { API_URL } from '../config.js'
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import { generateInvoice } from '../utils/pdfGenerator.js'
 
 export default function ParentDashboard() {
   const navigate = useNavigate()
@@ -316,10 +317,13 @@ export default function ParentDashboard() {
                               <td className="px-4 whitespace-nowrap py-3.5 text-xs font-mono">{new Date(history.paid_at).toLocaleString('vi-VN')}</td>
                               <td className="px-4 whitespace-nowrap py-3.5 font-bold text-slate-900 dark:text-white">{history.tuition_fees?.title || 'Khoản thu cũ'}</td>
                               <td className="px-4 whitespace-nowrap py-3.5">{Number(history.amount).toLocaleString('vi-VN')} VND</td>
-                              <td className="px-4 whitespace-nowrap py-3.5">
+                              <td className="px-4 whitespace-nowrap py-3.5 flex items-center gap-3">
                                 <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                   Thành công
                                 </span>
+                                <button onClick={() => generateInvoice(history, data.student)} className="text-[10px] flex items-center gap-1 font-bold text-cyan-600 hover:text-cyan-800 cursor-pointer">
+                                  <Download className="w-3 h-3" /> Tải PDF
+                                </button>
                               </td>
                             </tr>
                           ))}

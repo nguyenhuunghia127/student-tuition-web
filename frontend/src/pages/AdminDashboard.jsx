@@ -5,7 +5,7 @@ import {
   Search, BookOpen, Calendar, DollarSign, Award, Bell, 
   LogOut, Upload, CheckCircle2, AlertTriangle, Clock, 
   CreditCard, ExternalLink, Shield, User, Loader2, RefreshCw,
-  Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight, LayoutGrid
+  Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight, LayoutGrid, MessageSquare
 } from 'lucide-react'
 import { API_URL } from '../config.js'
 import { generateInvoice } from '../utils/pdfGenerator';
@@ -1236,6 +1236,7 @@ export default function AdminDashboard() {
             { id: 'schedules', label: 'Lịch Học', icon: Calendar },
             { id: 'assignments', label: 'Bài Tập', icon: BookOpen },
             { id: 'documents', label: 'Tài Liệu', icon: FileText },
+            { id: 'leaves', label: 'Đơn Nghỉ Phép', icon: MessageSquare },
             { id: 'notifications', label: 'Thông Báo', icon: Bell }
           ].map((menu, idx) => {
             const Icon = menu.icon
@@ -2805,8 +2806,8 @@ export default function AdminDashboard() {
                               <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
                                 <div className="flex items-center justify-between">
                                   <span>{new Date(h.paid_at).toLocaleString('vi-VN')}</span>
-                                  <button onClick={() => generateInvoice(h, h.students)} className="ml-3 p-1.5 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors" title="Tải Biên Lai PDF">
-                                    <Download className="w-4 h-4" />
+                                  <button onClick={() => generateInvoice(h, h.students)} className="ml-3 px-3 py-1.5 flex items-center gap-1.5 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors font-bold text-xs" title="Tải Biên Lai PDF">
+                                    <Download className="w-3 h-3" /> Tải PDF
                                   </button>
                                 </div>
                               </td>
