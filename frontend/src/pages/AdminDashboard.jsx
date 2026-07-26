@@ -5341,7 +5341,7 @@ export default function AdminDashboard() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5">
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                {classForm.class_id && !String(classForm.class_id).startsWith('temp_') ? 'Chỉnh Sửa Lớp Học' : 'Thêm Lớp Học Mới'}
+                {classForm.class_id && !String(classForm.class_id).startsWith('temp_') ? 'Chỉnh Sửa Lớp Học' : (String(classForm.class_id).startsWith('temp_') ? 'Khởi Tạo Lớp Từ Dữ Liệu Tạm' : 'Thêm Lớp Học Mới')}
               </h3>
               <button onClick={() => setShowClassModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
                 <X className="w-5 h-5" />
@@ -5364,13 +5364,16 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Khối lớp</label>
-                  <input
-                    type="text"
-                    placeholder="Ví dụ: Khối 12"
+                  <select
                     value={classForm.grade_level}
                     onChange={(e) => setClassForm({ ...classForm, grade_level: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                  />
+                  >
+                    <option value="">Chọn khối (6-12)</option>
+                    {[6, 7, 8, 9, 10, 11, 12].map(grade => (
+                      <option key={grade} value={`Khối ${grade}`}>Khối {grade}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-1.5">
@@ -5493,7 +5496,7 @@ export default function AdminDashboard() {
                   type="submit"
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md"
                 >
-                  {classForm.class_id && !String(classForm.class_id).startsWith('temp_') ? 'Cập Nhật Lớp' : 'Tạo Lớp Mới'}
+                  {classForm.class_id && !String(classForm.class_id).startsWith('temp_') ? 'Cập Nhật Lớp' : (String(classForm.class_id).startsWith('temp_') ? 'Lưu & Khởi Tạo Lớp' : 'Tạo Lớp Mới')}
                 </button>
               </div>
             </form>
