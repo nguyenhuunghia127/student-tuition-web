@@ -423,7 +423,7 @@ export const updateStudent = async (req, res) => {
 export const deleteStudent = async (req, res) => {
   const { id } = req.params;
   try {
-    const { error } = await supabaseAdmin.from('students').delete().eq('student_id', id);
+    const { error } = await supabaseAdmin.from('students').update({ is_deleted: true }).eq('student_id', id);
     if (error) return errorResponse(res, 'Lỗi xóa học sinh', error);
     await logActivity('admin', req.user?.id, 'DELETE', 'students', `Xóa học sinh ID: ${id}`);
     return successResponse(res, null, 'Xóa học sinh thành công');
@@ -439,7 +439,7 @@ export const deleteMultipleStudents = async (req, res) => {
   }
 
   try {
-    const { error } = await supabaseAdmin.from('students').delete().in('student_id', student_ids);
+    const { error } = await supabaseAdmin.from('students').update({ is_deleted: true }).in('student_id', student_ids);
     if (error) return errorResponse(res, 'Lỗi xóa danh sách học sinh', error);
     await logActivity('admin', req.user?.id, 'DELETE', 'students', `Xóa hàng loạt ${student_ids.length} học sinh`);
     return successResponse(res, null, 'Xóa thành công');
@@ -483,7 +483,13 @@ export const importStudents = async (req, res) => {
     }
 
     // BULK INSERT: Gửi 1 query duy nhất lên Database
-    const { error } = await supabaseAdmin.from('students').insert(payloads);
+    let error = null;
+    const chunkSize = 500;
+    for (let i = 0; i < payloads.length; i += chunkSize) {
+      const chunk = payloads.slice(i, i + chunkSize);
+      const { error: chunkErr } = await supabaseAdmin.from('students').insert(chunk);
+      if (chunkErr) { error = chunkErr; break; }
+    }
     if (error) throw error;
 
     const inserted = payloads.length;

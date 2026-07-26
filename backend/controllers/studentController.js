@@ -320,18 +320,33 @@ export const submitAssignment = async (req, res) => {
       return errorResponse(res, 'Không tìm thấy bài tập', assignError);
     }
 
-    const isLate = new Date() > new Date(assignment.deadline);
+    // 3. Quản lý Múi Giờ (Timezone Shift) - Ép về giờ VN (UTC+7) để so sánh deadline
+    const now = new Date();
+    const vnTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const deadlineDate = new Date(assignment.deadline);
+    const isLate = vnTime > deadlineDate;
     const status = isLate ? 'late' : 'submitted';
 
     const { data: existingSub } = await supabaseAdmin
       .from('assignment_submissions')
-      .select('submission_id')
+      .select('submission_id, file_url')
       .eq('assignment_id', assignment_id)
       .eq('student_id', student_id)
       .maybeSingle();
 
     let submission, submitError;
     if (existingSub) {
+      // 4. Chống rác máy chủ (Storage Leak): Xóa file cũ nếu có file mới
+      if (existingSub.file_url && existingSub.file_url !== file_url) {
+        try {
+          const urlParts = existingSub.file_url.split('/');
+          const oldFileName = urlParts[urlParts.length - 1];
+          if (oldFileName) {
+            await supabaseAdmin.storage.from('assignments').remove([oldFileName]);
+          }
+        } catch (e) { console.error('Lỗi xóa file rác:', e); }
+      }
+
       const result = await supabaseAdmin
         .from('assignment_submissions')
         .update({
