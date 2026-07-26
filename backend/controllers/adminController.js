@@ -34,6 +34,42 @@ const autoNotify = async (title, message, target_type, target_id) => {
 // ==========================================
 // 1. QUẢN LÝ LỚP HỌC (Classes)
 // ==========================================
+const syncStudentClassesData = async (student_id) => {
+  try {
+    const { data: studentClasses } = await supabaseAdmin
+      .from('student_classes')
+      .select('classes(*)')
+      .eq('student_id', student_id);
+
+    if (!studentClasses || studentClasses.length === 0) {
+      await supabaseAdmin.from('students').update({
+        enrolled_subjects: [],
+        class_name: null
+      }).eq('student_id', student_id);
+      return;
+    }
+
+    let allSubjects = new Set();
+    let classNames = [];
+    
+    studentClasses.forEach(item => {
+      if (item.classes) {
+        if (item.classes.class_name) classNames.push(item.classes.class_name);
+        if (item.classes.subject) {
+          const subjects = item.classes.subject.split(',').map(s => s.trim()).filter(Boolean);
+          subjects.forEach(s => allSubjects.add(s));
+        }
+      }
+    });
+
+    await supabaseAdmin.from('students').update({
+      enrolled_subjects: Array.from(allSubjects),
+      class_name: classNames.join(', ')
+    }).eq('student_id', student_id);
+  } catch (err) {
+    console.error('Error syncing student classes:', err);
+  }
+};
 export const getClasses = async (req, res) => {
   try {
     const { data, error } = await safeQuery(
@@ -91,6 +127,13 @@ export const updateClass = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Không thể cập nhật thông tin lớp học', error);
+    
+    // Sync students in this class
+    const { data: stClasses } = await supabaseAdmin.from('student_classes').select('student_id').eq('class_id', id);
+    if (stClasses && stClasses.length > 0) {
+      await Promise.all(stClasses.map(sc => syncStudentClassesData(sc.student_id)));
+    }
+
     await logActivity('admin', req.user?.id, 'UPDATE', 'classes', `Cập nhật lớp học ID: ${id}`);
     return successResponse(res, data, 'Cập nhật lớp học thành công');
   } catch (error) {
@@ -122,21 +165,7 @@ export const assignStudentsToClass = async (req, res) => {
     if (error) return errorResponse(res, 'Không thể gán học sinh vào lớp', error);
 
     // Đồng bộ class_name và enrolled_subjects cho bảng students
-    if (clsData) {
-      const classSubjects = clsData.subject ? clsData.subject.split(',').map(s => s.trim()).filter(Boolean) : [];
-      await Promise.all(student_ids.map(async (stId) => {
-        const { data: stData } = await supabaseAdmin.from('students').select('enrolled_subjects').eq('student_id', stId).single();
-        let existingSubs = stData?.enrolled_subjects || [];
-        if (typeof existingSubs === 'string') {
-          try { existingSubs = JSON.parse(existingSubs); } catch(e) { existingSubs = [existingSubs]; }
-        }
-        const newSubs = Array.from(new Set([...existingSubs, ...classSubjects]));
-        await supabaseAdmin.from('students').update({
-          class_name: clsData.class_name,
-          enrolled_subjects: newSubs
-        }).eq('student_id', stId);
-      }));
-    }
+    await Promise.all(student_ids.map(stId => syncStudentClassesData(stId)));
 
     await logActivity('admin', req.user?.id, 'CREATE', 'student_classes', `Gán ${student_ids.length} học sinh vào lớp ID: ${id}`);
     return successResponse(res, null, 'Gán học sinh vào lớp thành công');
@@ -156,6 +185,10 @@ export const removeStudentFromClass = async (req, res) => {
       .eq('student_id', student_id);
 
     if (error) return errorResponse(res, 'Không thể xóa học sinh khỏi lớp', error);
+    
+    // Sync student data
+    await syncStudentClassesData(student_id);
+
     await logActivity('admin', req.user?.id, 'DELETE', 'student_classes', `Xóa học sinh ${student_id} khỏi lớp ${id}`);
     return successResponse(res, null, 'Xóa học sinh khỏi lớp thành công');
   } catch (error) {
@@ -166,8 +199,18 @@ export const removeStudentFromClass = async (req, res) => {
 export const deleteClass = async (req, res) => {
   const { id } = req.params;
   try {
+    const { data: stClasses } = await supabaseAdmin.from('student_classes').select('student_id').eq('class_id', id);
+    
+    // Xóa lớp (Nên cấu hình ON DELETE CASCADE cho bảng student_classes trong Supabase, nếu không cần tự xóa)
+    // Ở đây ta xóa lớp trước, nếu lỗi vì ràng buộc khoá ngoại (không cascade), API sẽ lỗi
     const { error } = await supabaseAdmin.from('classes').delete().eq('class_id', id);
-    if (error) return errorResponse(res, 'Không thể xóa lớp học (lớp đang chứa học sinh)', error);
+    if (error) return errorResponse(res, 'Không thể xóa lớp học (lớp đang chứa học sinh hoặc có ràng buộc khác)', error);
+    
+    // Đồng bộ sinh viên
+    if (stClasses && stClasses.length > 0) {
+      await Promise.all(stClasses.map(sc => syncStudentClassesData(sc.student_id)));
+    }
+
     await logActivity('admin', req.user?.id, 'DELETE', 'classes', `Xóa lớp học ID: ${id}`);
     return successResponse(res, null, 'Xóa lớp học thành công');
   } catch (error) {
