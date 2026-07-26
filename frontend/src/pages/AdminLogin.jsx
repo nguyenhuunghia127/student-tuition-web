@@ -50,9 +50,9 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 relative overflow-hidden transition-colors duration-500">
       {/* Animated Background decorations */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-purple-400/20 dark:bg-purple-600/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob" style={{ animationDelay: '2s' }}></div>
-      <div className="absolute top-[20%] right-[20%] w-[400px] h-[400px] rounded-full bg-fuchsia-400/20 dark:bg-fuchsia-500/10 blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob" style={{ animationDelay: '4s' }}></div>
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-purple-400/10 dark:bg-purple-600/8 blur-[70px] animate-blob"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-400/10 dark:bg-indigo-600/8 blur-[70px] animate-blob" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-[20%] right-[20%] w-[400px] h-[400px] rounded-full bg-fuchsia-400/10 dark:bg-fuchsia-500/8 blur-[60px] animate-blob" style={{ animationDelay: '4s' }}></div>
 
       {/* Floating Theme Toggle */}
       <div className="absolute top-6 right-6 z-50">

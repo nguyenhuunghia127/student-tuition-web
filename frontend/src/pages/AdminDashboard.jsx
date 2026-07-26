@@ -48,6 +48,14 @@ export default function AdminDashboard() {
   const [studentForm, setStudentForm] = useState({ id: '', full_name: '', class_name: '', phone_number: '', parent_name: '', parent_phone: '', status: 'active', enrolled_subjects: [], class_ids: [] })
   const [classForm, setClassForm] = useState({ class_id: '', class_name: '', grade_level: '', academic_year: '', subject: '', tuition_fee: '' })
   const [showClassModal, setShowClassModal] = useState(false)
+  const [classSearch, setClassSearch] = useState('')
+  const [classGradeFilter, setClassGradeFilter] = useState('All')
+  const [classYearFilter, setClassYearFilter] = useState('All')
+  const [showManageStudentsModal, setShowManageStudentsModal] = useState(false)
+  const [managingClass, setManagingClass] = useState(null)
+  const [managingTab, setManagingTab] = useState('enrolled')
+  const [studentSearchInClass, setStudentSearchInClass] = useState('')
+  const [selectedStudentsToAssign, setSelectedStudentsToAssign] = useState([])
   const [selectedStudents, setSelectedStudents] = useState([])
   const [showStudentModal, setShowStudentModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -441,6 +449,116 @@ export default function AdminDashboard() {
       console.error(err)
     }
   }
+
+  // --- QUẢN LÝ LỚP HỌC HANDLERS ---
+  const handleSaveClass = async (e) => {
+    e.preventDefault()
+    if (classForm.tuition_fee < 0) {
+      alert('Học phí không thể là số âm');
+      return;
+    }
+
+    const isEdit = !!classForm.class_id && !String(classForm.class_id).startsWith('temp_');
+    const method = isEdit ? 'PUT' : 'POST';
+    const url = isEdit
+      ? `${API_URL}/api/admin/classes/${classForm.class_id}`
+      : `${API_URL}/api/admin/classes`;
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(classForm)
+      });
+      const resJson = await response.json();
+      if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi lưu lớp học');
+      
+      // Tự động gán nợ học phí cho lớp nếu chọn checkbox auto_assign_tuition
+      if (classForm.auto_assign_tuition && Number(classForm.tuition_fee) > 0 && classForm.class_name) {
+        const activeSubjects = (classForm.subject || 'Toán').split(',').map(s => s.trim()).filter(Boolean);
+        const subjectConfigs = {};
+        const feePerSubject = Math.round(Number(classForm.tuition_fee) / (activeSubjects.length || 1));
+        activeSubjects.forEach(sub => {
+          subjectConfigs[sub] = { active: true, months_count: 1, monthly_amount: feePerSubject };
+        });
+
+        await fetch(`${API_URL}/api/admin/tuition/assign-advanced`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assign_mode: 'class',
+            class_name: classForm.class_name,
+            subject_configs: subjectConfigs,
+            start_date: new Date().toISOString().split('T')[0],
+            split_by_month: true
+          })
+        });
+        await fetchTuition();
+      }
+
+      setShowClassModal(false);
+      setClassForm({ class_id: '', class_name: '', grade_level: '', academic_year: '', subject: '', tuition_fee: '' });
+      await fetchClasses();
+      await fetchStudents();
+      await fetchStats();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+
+  const handleDeleteClass = async (classId, className) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa lớp ${className}? Tất cả gán lớp học sinh liên quan có thể bị ảnh hưởng.`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/classes/${classId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Xóa lớp học thành công');
+        await fetchClasses();
+        await fetchStudents();
+      } else {
+        alert(data.message || 'Không thể xóa lớp học (lớp đang chứa học sinh)');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối khi xóa lớp');
+    }
+  };
+
+  const handleAssignStudentsToClass = async (classId, studentIds) => {
+    if (!studentIds || studentIds.length === 0) return;
+    try {
+      const response = await fetch(`${API_URL}/api/admin/classes/${classId}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: studentIds })
+      });
+      const resJson = await response.json();
+      if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi gán học sinh');
+      alert(`Đã thêm ${studentIds.length} học sinh vào lớp!`);
+      setSelectedStudentsToAssign([]);
+      await fetchStudents();
+      await fetchClasses();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleRemoveStudentFromClass = async (classId, studentId, studentName) => {
+    if (!window.confirm(`Xóa học sinh ${studentName} khỏi lớp này?`)) return;
+    try {
+      const response = await fetch(`${API_URL}/api/admin/classes/${classId}/students/${studentId}`, {
+        method: 'DELETE'
+      });
+      const resJson = await response.json();
+      if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi xóa học sinh khỏi lớp');
+      await fetchStudents();
+      await fetchClasses();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   const handleExportGrades = async () => {
     await handleDownloadAuth(`${API_URL}/api/admin/grades/export`, 'Bang_Diem.xlsx');
@@ -1036,22 +1154,22 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-[#080b12] text-slate-700 dark:text-[#c5c6c7] flex flex-col md:flex-row transition-colors duration-500 relative overflow-hidden">
       
-      {/* Animated Mesh Gradient Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden dark:mesh-bg mesh-bg-light transition-all duration-700">
+      {/* Animated Mesh Gradient Background - ẩn trong dark mode, dùng solid bg */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden mesh-bg-light dark:hidden transition-all duration-700">
         <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.25, 0.15] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/20 blur-[100px]"
+          className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/15 blur-[60px]"
         />
         <motion.div 
-          animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
+          animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0.2, 0.1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/20 blur-[100px]"
+          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/15 blur-[60px]"
         />
         <motion.div 
-          animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }}
+          animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.2, 0.1] }}
           transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-          className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full bg-indigo-500/20 blur-[100px]"
+          className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full bg-indigo-500/15 blur-[60px]"
         />
       </div>
 
@@ -1063,7 +1181,7 @@ export default function AdminDashboard() {
           </div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Quản Trị Viên</h2>
         </div>
-        <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-md rounded-lg text-slate-600 dark:text-slate-300">
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300">
           <Menu className="w-5 h-5" />
         </button>
       </div>
@@ -1098,7 +1216,7 @@ export default function AdminDashboard() {
               <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest">Dashboard</p>
             </div>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white bg-slate-200/50 dark:bg-slate-800/50 rounded-lg backdrop-blur-md">
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white bg-slate-200 dark:bg-slate-800 rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1150,7 +1268,7 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="pt-6 border-t border-slate-200/50 dark:border-white/10 text-center space-y-4">
-          <div className="flex justify-center p-1 bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl w-max mx-auto ring-1 ring-white/10">
+          <div className="flex justify-center p-1 bg-slate-200 dark:bg-slate-800 rounded-2xl w-max mx-auto">
             <ThemeToggle />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate px-2">{adminUser?.email}</div>
@@ -1189,7 +1307,7 @@ export default function AdminDashboard() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={fetchStats} 
-                className="p-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-2xl text-indigo-600 dark:text-indigo-400 shadow-sm"
               >
                 <RefreshCw className="w-5 h-5" />
               </motion.button>
@@ -1405,7 +1523,7 @@ export default function AdminDashboard() {
                     <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]"></div>
                     Tình Trạng Nộp Bài & Chấm Điểm
                   </h3>
-                  <span className="text-[10px] bg-white/50 dark:bg-slate-800/50 backdrop-blur-md text-slate-600 dark:text-slate-300 font-bold px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700/50">
+                  <span className="text-[10px] bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700/50">
                     {assignments.length} Bài Tập
                   </span>
                 </div>
@@ -1420,7 +1538,7 @@ export default function AdminDashboard() {
                       <span className="text-xl font-black text-slate-700 dark:text-slate-200 transition-all duration-300 group-hover:-translate-y-2 group-hover:text-cyan-500">
                         {bar.value}
                       </span>
-                      <div className="w-14 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-2xl h-48 flex items-end justify-center p-1.5 relative overflow-hidden border border-white/20 dark:border-white/5">
+                      <div className="w-14 bg-slate-100 dark:bg-slate-800 rounded-2xl h-48 flex items-end justify-center p-1.5 relative overflow-hidden border border-slate-200 dark:border-slate-700/50">
                         <motion.div 
                           initial={{ height: 0 }}
                           animate={{ height: `${bar.max > 0 ? (bar.value / bar.max * 100) : 0}%` }}
@@ -1467,7 +1585,7 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="relative pt-2">
-                      <div className="w-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-white/20 dark:border-white/5 h-8 rounded-2xl overflow-hidden flex shadow-inner text-[11px] font-bold text-white">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 h-8 rounded-2xl overflow-hidden flex shadow-inner text-[11px] font-bold text-white">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${stats.tuitionRate}%` }}
@@ -1529,7 +1647,7 @@ export default function AdminDashboard() {
                               <div className={`w-2 h-2 rounded-full ${colorClass} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} style={{ shadowColor: isTargeted ? '#f43f5e' : '#6366f1' }}></div>
                             </div>
                             
-                            <div className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-2xl p-4 border border-white/20 dark:border-white/5 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors shadow-sm">
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-sm">
                               <div className="flex justify-between items-start gap-2 mb-1.5">
                                 <div className="flex items-center gap-2">
                                   <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">{notif.title}</h4>
@@ -1646,7 +1764,7 @@ export default function AdminDashboard() {
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="col-span-full flex flex-col items-center justify-center p-12 text-slate-400 dark:text-slate-500 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-3xl border border-white/20 dark:border-white/5"
+                    className="col-span-full flex flex-col items-center justify-center p-12 text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700/50"
                   >
                     <ShieldCheck className="w-16 h-16 mb-4 text-emerald-500 opacity-80" />
                     <p className="text-lg font-bold text-slate-700 dark:text-slate-300">Tuyệt vời! Không có cảnh báo nào.</p>
@@ -1727,41 +1845,121 @@ export default function AdminDashboard() {
 
         {/* 5.1.5 CLASSES */}
         {activeSubTab === 'classes' && (() => {
+          const dbClassNames = classes.map(c => c.class_name);
+          const studentClassNames = Array.from(new Set(students.map(s => s.classes?.class_name || s.class_name).filter(Boolean)));
+          const allClassNames = Array.from(new Set([...dbClassNames, ...studentClassNames])).sort();
+          
+          const mergedClasses = allClassNames.map(name => {
+            const dbClass = classes.find(c => c.class_name === name);
+            if (dbClass) return dbClass;
+            return { class_id: `temp_${name}`, class_name: name, grade_level: '', academic_year: '' };
+          });
+
+          // Filtering
+          const filteredClasses = mergedClasses.filter(c => {
+            const matchName = c.class_name.toLowerCase().includes(classSearch.toLowerCase()) || 
+                              (c.subject || '').toLowerCase().includes(classSearch.toLowerCase());
+            const matchGrade = classGradeFilter === 'All' || c.grade_level === classGradeFilter;
+            const matchYear = classYearFilter === 'All' || (c.academic_year || '2024-2025') === classYearFilter;
+            return matchName && matchGrade && matchYear;
+          });
+
+          const totalAssignedStudents = students.filter(s => s.classes?.class_id || s.class_name).length;
+          const avgStudentsPerClass = mergedClasses.length > 0 ? (students.length / mergedClasses.length).toFixed(1) : 0;
+
           return (
             <div className="space-y-6 animate-fade-in pb-10">
-              <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <LayoutGrid className="text-indigo-600 dark:text-indigo-400" />
-                  Quản Lý Lớp Học
-                </h2>
+              {/* Header & Stats Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase">Tổng Số Lớp</p>
+                    <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{mergedClasses.length}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <LayoutGrid className="w-6 h-6" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase">Tổng Học Sinh</p>
+                    <p className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">{students.length}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                    <Users className="w-6 h-6" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase">Trung Bình / Lớp</p>
+                    <p className="text-2xl font-black text-cyan-600 dark:text-cyan-400 mt-1">{avgStudentsPerClass} <span className="text-xs font-normal text-slate-400">HS</span></p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-cyan-50 dark:bg-cyan-900/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Toolbar: Search, Filter, Add button */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-wrap items-center gap-3 flex-1">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                      <Search className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm theo tên lớp hoặc môn..."
+                      value={classSearch}
+                      onChange={(e) => setClassSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <select
+                    value={classGradeFilter}
+                    onChange={(e) => setClassGradeFilter(e.target.value)}
+                    className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
+                  >
+                    <option value="All">Tất cả khối</option>
+                    {Array.from(new Set(mergedClasses.map(c => c.grade_level).filter(Boolean))).sort().map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={classYearFilter}
+                    onChange={(e) => setClassYearFilter(e.target.value)}
+                    className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
+                  >
+                    <option value="All">Tất cả năm học</option>
+                    {Array.from(new Set(mergedClasses.map(c => c.academic_year || '2024-2025'))).sort().map(y => (
+                      <option key={y} value={y}>Năm {y}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   onClick={() => {
-                    setClassForm({ class_id: '', class_name: '', grade_level: '', academic_year: '' })
+                    setClassForm({ class_id: '', class_name: '', grade_level: '', academic_year: '2024-2025', subject: '', tuition_fee: '' })
                     setShowClassModal(true)
                   }}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 font-medium transition-colors"
+                  className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl flex items-center justify-center gap-2 font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" /> Thêm Lớp Mới
                 </button>
               </div>
 
+              {/* Class Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {(() => {
-                  const dbClassNames = classes.map(c => c.class_name);
-                  const studentClassNames = Array.from(new Set(students.map(s => s.classes?.class_name || s.class_name).filter(Boolean)));
-                  const allClassNames = Array.from(new Set([...dbClassNames, ...studentClassNames])).sort();
-                  
-                  const mergedClasses = allClassNames.map(name => {
-                    const dbClass = classes.find(c => c.class_name === name);
-                    if (dbClass) return dbClass;
-                    return { class_id: `temp_${name}`, class_name: name, grade_level: '', academic_year: '' };
-                  });
-
-                  if (mergedClasses.length === 0) {
-                    return <div className="col-span-full text-center py-10 text-slate-500">Chưa có lớp học nào. Hãy thêm lớp mới!</div>
-                  }
-
-                  return mergedClasses.map(c => {
+                {filteredClasses.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <p className="font-semibold">Không tìm thấy lớp học nào phù hợp.</p>
+                  </div>
+                ) : (
+                  filteredClasses.map(c => {
                     const classStudents = students.filter(s => 
                       s.classes?.class_id === c.class_id || 
                       s.class_name === c.class_name ||
@@ -1769,96 +1967,124 @@ export default function AdminDashboard() {
                     )
                     const isTemp = String(c.class_id).startsWith('temp_');
                     return (
-                      <div key={c.class_id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 hover:shadow-md transition-shadow relative group flex flex-col h-full">
-                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => {
-                            setClassForm(c)
-                            setShowClassModal(true)
-                          }} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg" title={isTemp ? "Tạo lớp này" : "Chỉnh sửa"}>
-                            {isTemp ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-                          </button>
-                          {!isTemp && (
-                            <button onClick={async () => {
-                              if (!confirm(`Bạn có chắc muốn xóa lớp ${c.class_name}?`)) return
-                              try {
-                                const res = await fetch(`${API_URL}/api/admin/classes/${c.class_id}`, {
-                              method: 'DELETE',
-                              headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_session')}` }
-                            })
-                            const data = await res.json()
-                            if (data.success) {
-                              alert('Xóa thành công')
-                              fetchClasses()
-                            } else alert(data.message)
-                          } catch (e) { alert('Lỗi xóa') }
-                        }} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
-                          {c.class_name.substring(0, 2)}
-                        </div>
+                      <div key={c.class_id} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 hover:shadow-lg transition-all relative flex flex-col justify-between h-full">
                         <div>
-                          <h3 className="font-bold text-slate-800 dark:text-white text-lg">{c.class_name}</h3>
-                          <p className="text-sm text-slate-500">Khối: {c.grade_level || 'Chưa rõ'} | Năm học: {c.academic_year || '2024-2025'}</p>
-                          {(c.subject || c.tuition_fee) && (
-                            <p className="text-xs text-indigo-500 font-medium mt-1">
-                              {c.subject ? `Môn: ${c.subject}` : ''}
-                              {c.subject && c.tuition_fee ? ' • ' : ''}
-                              {c.tuition_fee ? `${Number(c.tuition_fee).toLocaleString('vi-VN')} đ` : ''}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                            Sĩ số: <strong className="text-indigo-600 dark:text-indigo-400">{classStudents.length}</strong> học sinh
-                          </span>
-                        </div>
-                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1 text-sm custom-scrollbar">
-                          {classStudents.slice(0, 5).map(st => (
-                            <div key={st.student_id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                              onClick={() => {
-                                setStudentProfile(st)
-                                setShowProfileModal(true)
-                              }}>
-                              <div className="flex items-center gap-2 truncate">
-                                <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
-                                  {st.full_name.charAt(0)}
-                                </div>
-                                <span className="font-medium text-slate-700 dark:text-slate-300 truncate">{st.full_name}</span>
+                          {/* Card Top */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-indigo-500/20">
+                                {c.class_name.substring(0, 2).toUpperCase()}
                               </div>
-                              <span className="text-slate-500 text-xs">{st.phone_number}</span>
+                              <div>
+                                <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight">{c.class_name}</h3>
+                                <p className="text-xs font-medium text-slate-500 mt-0.5">
+                                  {c.grade_level || 'Khối ?'} • Năm {c.academic_year || '2024-2025'}
+                                </p>
+                              </div>
                             </div>
-                          ))}
-                          {classStudents.length > 5 && (
-                            <div 
+                          </div>
+
+                          {/* Subject & Tuition Badges */}
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {c.subject && (
+                              <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-800/50">
+                                Môn: {c.subject}
+                              </span>
+                            )}
+                            {c.tuition_fee ? (
+                              <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-lg border border-emerald-200 dark:border-emerald-800/50">
+                                {Number(c.tuition_fee).toLocaleString('vi-VN')} đ/tháng
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Student list section */}
+                          <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                                Sĩ số: <strong className="text-indigo-600 dark:text-indigo-400 text-sm">{classStudents.length}</strong> học sinh
+                              </span>
+                            </div>
+                            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs custom-scrollbar">
+                              {classStudents.map(st => (
+                                <div key={st.student_id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                  <div className="flex items-center gap-2 truncate cursor-pointer"
+                                    onClick={() => {
+                                      setStudentProfile(st)
+                                      setShowProfileModal(true)
+                                    }}>
+                                    <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center text-[10px] font-bold">
+                                      {st.full_name?.charAt(0)}
+                                    </div>
+                                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{st.full_name}</span>
+                                  </div>
+                                  {!isTemp && (
+                                    <button
+                                      onClick={() => handleRemoveStudentFromClass(c.class_id, st.student_id, st.full_name)}
+                                      className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                                      title="Xóa học sinh khỏi lớp"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {classStudents.length === 0 && (
+                                <div className="text-center text-slate-400 text-xs py-3 italic bg-slate-50 dark:bg-slate-800/30 rounded-xl">Lớp chưa có học sinh nào</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Bottom Actions */}
+                        <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-4 flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              setManagingClass(c)
+                              setSelectedStudentsToAssign([])
+                              setShowManageStudentsModal(true)
+                            }}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Quản lý HS</span>
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            <button
                               onClick={() => {
-                                setStudentClassFilter(c.class_name)
-                                setActiveSubTab('students')
+                                setActiveSubTab('notifications')
+                                setNotifForm({ title: `Thông báo dành cho lớp ${c.class_name}`, message: '', target_type: 'class', target_id: c.class_name })
                               }}
-                              className="text-center text-xs text-indigo-600 dark:text-indigo-400 py-1 cursor-pointer hover:underline">
-                              Xem tất cả {classStudents.length} học sinh
-                            </div>
-                          )}
-                          {classStudents.length === 0 && (
-                            <div className="text-center text-slate-400 text-xs py-2 italic">Lớp chưa có học sinh nào</div>
-                          )}
+                              className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl transition-all cursor-pointer"
+                              title="Gửi thông báo đến lớp"
+                            >
+                              <Bell className="w-4 h-4" />
+                            </button>
+                            
+                            <button onClick={() => {
+                              setClassForm(c)
+                              setShowClassModal(true)
+                            }} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all cursor-pointer" title={isTemp ? "Tạo lớp chính thức" : "Chỉnh sửa lớp"}>
+                              {isTemp ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                            </button>
+
+                            {!isTemp && (
+                              <button onClick={() => handleDeleteClass(c.class_id, c.class_name)} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all cursor-pointer" title="Xóa lớp">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })
-                })()}
+                    )
+                  })
+                )}
               </div>
             </div>
           )
         })()}
+
 
         {/* 5.2 STUDENTS */}
         {activeSubTab === 'students' && (() => {
@@ -3552,7 +3778,7 @@ export default function AdminDashboard() {
             {notifTab === 'send' && (
               <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-1">
-                <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl shadow-slate-200/50 dark:shadow-none backdrop-blur-xl">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-xl">
                   <form onSubmit={handleSendNotification} className="space-y-6">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tiêu đề thông báo</label>
@@ -5105,6 +5331,360 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL THÊM / SỬA LỚP HỌC */}
+      {showClassModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
+                {classForm.class_id && !String(classForm.class_id).startsWith('temp_') ? 'Chỉnh Sửa Lớp Học' : 'Thêm Lớp Học Mới'}
+              </h3>
+              <button onClick={() => setShowClassModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveClass} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Tên lớp học *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: 12A1, 10C2, AnhVan_K11"
+                  value={classForm.class_name}
+                  onChange={(e) => setClassForm({ ...classForm, class_name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Khối lớp</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Khối 12"
+                    value={classForm.grade_level}
+                    onChange={(e) => setClassForm({ ...classForm, grade_level: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Năm học</label>
+                  <input
+                    type="text"
+                    placeholder="2024-2025"
+                    value={classForm.academic_year}
+                    onChange={(e) => setClassForm({ ...classForm, academic_year: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* MÔN HỌC CHÍNH (TOÁN, LÝ, HÓA) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Môn học (chọn 1, 2 hoặc cả 3 môn) *</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const all3 = 'Toán, Vật Lý, Hóa Học';
+                      const isAllSelected = (classForm.subject || '') === all3;
+                      const nextSubs = isAllSelected ? 'Toán' : all3;
+                      const count = nextSubs.split(',').length;
+                      setClassForm(prev => ({
+                        ...prev,
+                        subject: nextSubs,
+                        tuition_fee: count * 500000
+                      }));
+                    }}
+                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    {(classForm.subject || '') === 'Toán, Vật Lý, Hóa Học' ? 'Bỏ chọn' : 'Chọn cả 3 môn'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'Toán', name: '📐 Toán' },
+                    { id: 'Vật Lý', name: '⚡ Vật Lý' },
+                    { id: 'Hóa Học', name: '🧪 Hóa Học' }
+                  ].map(sub => {
+                    const currentList = (classForm.subject || '').split(',').map(s => s.trim()).filter(Boolean);
+                    const isSelected = currentList.includes(sub.id);
+
+                    return (
+                      <button
+                        type="button"
+                        key={sub.id}
+                        onClick={() => {
+                          let updated;
+                          if (isSelected) {
+                            updated = currentList.filter(s => s !== sub.id);
+                          } else {
+                            updated = [...currentList, sub.id];
+                          }
+                          const newSubjectStr = updated.join(', ');
+                          const calculatedFee = updated.length * 500000;
+                          setClassForm(prev => ({
+                            ...prev,
+                            subject: newSubjectStr,
+                            tuition_fee: calculatedFee > 0 ? calculatedFee : prev.tuition_fee
+                          }));
+                        }}
+                        className={`py-2.5 px-2 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
+                            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span>{sub.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* HỌC PHÍ ĐỊNH KỲ (VNĐ/THÁNG) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Học phí định kỳ (VNĐ/tháng)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Ví dụ: 500000"
+                  value={classForm.tuition_fee ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                    setClassForm({ ...classForm, tuition_fee: val });
+                  }}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+                {classForm.subject && (
+                  <p className="text-[11px] text-indigo-500 font-medium pt-0.5">
+                    💡 Đã chọn {(classForm.subject || '').split(',').filter(Boolean).length} môn • Dự kiến: {Number(classForm.tuition_fee || 0).toLocaleString('vi-VN')} đ/tháng
+                  </p>
+                )}
+              </div>
+
+              <label className="flex items-center gap-2 p-2.5 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/40 text-xs text-indigo-900 dark:text-indigo-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!classForm.auto_assign_tuition}
+                  onChange={(e) => setClassForm({ ...classForm, auto_assign_tuition: e.target.checked })}
+                  className="rounded accent-indigo-600 w-4 h-4"
+                />
+                <span className="font-semibold">Tự động gán khoản nợ học phí này cho tất cả học sinh thuộc lớp</span>
+              </label>
+
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowClassModal(false)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md"
+                >
+                  {classForm.class_id && !String(classForm.class_id).startsWith('temp_') ? 'Cập Nhật Lớp' : 'Tạo Lớp Mới'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL QUẢN LÝ HỌC SINH TRONG LỚP */}
+      {showManageStudentsModal && managingClass && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
+                  Quản Lý Học Sinh: Lớp {managingClass.class_name}
+                </h3>
+                <p className="text-xs text-slate-500">Khối: {managingClass.grade_level || 'Chưa rõ'} • Năm học: {managingClass.academic_year || '2024-2025'}</p>
+              </div>
+              <button onClick={() => setShowManageStudentsModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <button
+                onClick={() => setManagingTab('enrolled')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                  managingTab === 'enrolled'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                Học sinh trong lớp ({students.filter(s => s.classes?.class_id === managingClass.class_id || s.class_name === managingClass.class_name || (s.student_classes && s.student_classes.some(sc => sc.classes?.class_id === managingClass.class_id))).length})
+              </button>
+              <button
+                onClick={() => setManagingTab('add')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                  managingTab === 'add'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                + Thêm học sinh vào lớp
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
+              {managingTab === 'enrolled' ? (
+                (() => {
+                  const enrolled = students.filter(s => 
+                    s.classes?.class_id === managingClass.class_id || 
+                    s.class_name === managingClass.class_name ||
+                    (s.student_classes && s.student_classes.some(sc => sc.classes?.class_id === managingClass.class_id))
+                  );
+                  const filtered = enrolled.filter(s => s.full_name.toLowerCase().includes(studentSearchInClass.toLowerCase()));
+
+                  return (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Tìm tên học sinh trong lớp..."
+                        value={studentSearchInClass}
+                        onChange={(e) => setStudentSearchInClass(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                      />
+
+                      {filtered.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-xs italic">
+                          Không có học sinh nào trong danh sách.
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {filtered.map(st => (
+                            <div key={st.student_id} className="flex justify-between items-center py-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 font-bold text-xs flex items-center justify-center">
+                                  {st.full_name?.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-sm text-slate-900 dark:text-white">{st.full_name}</p>
+                                  <p className="text-xs text-slate-500">{st.phone_number || 'Chưa cập nhật SĐT'}</p>
+                                </div>
+                              </div>
+                              
+                              <button
+                                onClick={() => handleRemoveStudentFromClass(managingClass.class_id, st.student_id, st.full_name)}
+                                className="px-3 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Xóa khỏi lớp</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              ) : (
+                (() => {
+                  const notEnrolled = students.filter(s => 
+                    s.classes?.class_id !== managingClass.class_id && 
+                    s.class_name !== managingClass.class_name &&
+                    (!s.student_classes || !s.student_classes.some(sc => sc.classes?.class_id === managingClass.class_id))
+                  );
+                  const filtered = notEnrolled.filter(s => s.full_name.toLowerCase().includes(studentSearchInClass.toLowerCase()));
+
+                  return (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Tìm học sinh để thêm vào lớp..."
+                        value={studentSearchInClass}
+                        onChange={(e) => setStudentSearchInClass(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                      />
+
+                      <div className="flex justify-between items-center py-1 text-xs text-slate-500">
+                        <span>Học sinh khả dụng ({filtered.length})</span>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-indigo-600 dark:text-indigo-400 font-bold">
+                          <input
+                            type="checkbox"
+                            checked={filtered.length > 0 && selectedStudentsToAssign.length === filtered.length}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedStudentsToAssign(filtered.map(s => s.student_id));
+                              else setSelectedStudentsToAssign([]);
+                            }}
+                            className="rounded accent-indigo-600"
+                          />
+                          <span>Chọn tất cả</span>
+                        </label>
+                      </div>
+
+                      {filtered.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-xs italic">
+                          Tất cả học sinh đã ở trong lớp này hoặc không tìm thấy.
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {filtered.map(st => {
+                            const isChecked = selectedStudentsToAssign.includes(st.student_id);
+                            return (
+                              <div key={st.student_id} className="flex justify-between items-center py-2.5">
+                                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      if (isChecked) setSelectedStudentsToAssign(prev => prev.filter(id => id !== st.student_id));
+                                      else setSelectedStudentsToAssign(prev => [...prev, st.student_id]);
+                                    }}
+                                    className="rounded accent-indigo-600"
+                                  />
+                                  <div>
+                                    <p className="font-bold text-sm text-slate-900 dark:text-white">{st.full_name}</p>
+                                    <p className="text-xs text-slate-500">Lớp hiện tại: {st.classes?.class_name || st.class_name || 'Chưa xếp lớp'}</p>
+                                  </div>
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowManageStudentsModal(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Đóng
+              </button>
+              {managingTab === 'add' && selectedStudentsToAssign.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleAssignStudentsToClass(managingClass.class_id, selectedStudentsToAssign)}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm {selectedStudentsToAssign.length} học sinh vào lớp</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

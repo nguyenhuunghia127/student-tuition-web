@@ -107,6 +107,9 @@ export const assignStudentsToClass = async (req, res) => {
   }
 
   try {
+    // Lấy thông tin lớp học để lấy tên lớp và danh sách môn
+    const { data: clsData } = await supabaseAdmin.from('classes').select('*').eq('class_id', id).single();
+
     const inserts = student_ids.map(student_id => ({
       class_id: id,
       student_id
@@ -117,6 +120,24 @@ export const assignStudentsToClass = async (req, res) => {
       .upsert(inserts, { onConflict: 'student_id,class_id' });
 
     if (error) return errorResponse(res, 'Không thể gán học sinh vào lớp', error);
+
+    // Đồng bộ class_name và enrolled_subjects cho bảng students
+    if (clsData) {
+      const classSubjects = clsData.subject ? clsData.subject.split(',').map(s => s.trim()).filter(Boolean) : [];
+      await Promise.all(student_ids.map(async (stId) => {
+        const { data: stData } = await supabaseAdmin.from('students').select('enrolled_subjects').eq('student_id', stId).single();
+        let existingSubs = stData?.enrolled_subjects || [];
+        if (typeof existingSubs === 'string') {
+          try { existingSubs = JSON.parse(existingSubs); } catch(e) { existingSubs = [existingSubs]; }
+        }
+        const newSubs = Array.from(new Set([...existingSubs, ...classSubjects]));
+        await supabaseAdmin.from('students').update({
+          class_name: clsData.class_name,
+          enrolled_subjects: newSubs
+        }).eq('student_id', stId);
+      }));
+    }
+
     await logActivity('admin', req.user?.id, 'CREATE', 'student_classes', `Gán ${student_ids.length} học sinh vào lớp ID: ${id}`);
     return successResponse(res, null, 'Gán học sinh vào lớp thành công');
   } catch (error) {

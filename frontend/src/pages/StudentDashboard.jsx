@@ -275,8 +275,8 @@ export default function StudentDashboard() {
         
         {/* Banner Học sinh */}
         {student && (
-          <div className="bg-gradient-to-r from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#1f2833]/40 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative overflow-hidden shadow-sm dark:shadow-none">
-            <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-cyan-500/5 rounded-full blur-[80px]"></div>
+          <div className="bg-gradient-to-r from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#1f2833] dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative overflow-hidden shadow-sm dark:shadow-none">
+            <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-cyan-500/3 rounded-full blur-[40px]"></div>
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">Hồ Sơ Học Sinh</span>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white mt-3">{student.full_name}</h1>

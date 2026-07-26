@@ -110,9 +110,9 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
       {/* Header Toolbar */}
       <div className="flex items-center justify-between p-5 border-b border-slate-200/50 dark:border-slate-800/50">
         <div className="flex items-center gap-2">
-          <button onClick={handlePrevWeek} className="p-2 bg-white/50 dark:bg-slate-700/50 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">&lt;</button>
-          <button onClick={handleToday} className="px-4 py-2 text-xs font-bold bg-white/50 dark:bg-slate-700/50 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white transition-colors">Hôm nay</button>
-          <button onClick={handleNextWeek} className="p-2 bg-white/50 dark:bg-slate-700/50 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">&gt;</button>
+          <button onClick={handlePrevWeek} className="p-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">&lt;</button>
+          <button onClick={handleToday} className="px-4 py-2 text-xs font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white transition-colors">Hôm nay</button>
+          <button onClick={handleNextWeek} className="p-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">&gt;</button>
         </div>
         <div className="font-extrabold text-slate-800 dark:text-slate-200">
           Tuần: {monday.toLocaleDateString('vi-VN')} - {weekDays[6].toLocaleDateString('vi-VN')}

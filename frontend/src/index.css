@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
+/* Tailwind v4: dùng @custom-variant để override dark mode sang class-based */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -54,13 +55,13 @@ body {
   background: #475569;
 }
 
-/* Glassmorphism utilities */
+/* Card utilities - solid background, no blur */
 .glass-panel {
-  @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-xl;
+  @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 shadow-xl;
 }
 
 .glass-card {
-  @apply bg-white/50 dark:bg-[#1e293b]/50 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-300;
+  @apply bg-white dark:bg-[#1a2235] border border-slate-200 dark:border-slate-700/50 shadow-md hover:shadow-xl transition-all duration-300;
 }
 
 /* Hide scrollbar for tabs */
@@ -93,6 +94,15 @@ body {
     radial-gradient(at 0% 50%, hsla(355,100%,93%,0.3) 0px, transparent 50%);
   background-size: cover;
   background-position: center;
+}
+
+/* Dark mode override cho mesh-bg-light (Tailwind v4 không hỗ trợ dark: với custom CSS class) */
+.dark .mesh-bg-light {
+  background-color: #0f172a;
+  background-image: 
+    radial-gradient(at 40% 20%, hsla(250,100%,74%,0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189,100%,56%,0.15) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355,100%,93%,0.1) 0px, transparent 50%);
 }
 
 /* Subtle Glow for Cards */

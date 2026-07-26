@@ -159,8 +159,8 @@ export default function ParentDashboard() {
         
         {/* Banner Học sinh */}
         {parent && (
-          <div className="bg-gradient-to-r from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#1f2833]/40 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative overflow-hidden shadow-sm dark:shadow-none">
-            <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-cyan-500/5 rounded-full blur-[80px]"></div>
+          <div className="bg-gradient-to-r from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#1f2833] dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative overflow-hidden shadow-sm dark:shadow-none">
+            <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-cyan-500/3 rounded-full blur-[40px]"></div>
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">Hồ Sơ Phụ Huynh</span>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white mt-3">{parent.parent_name || 'Phụ Huynh'}</h1>
@@ -171,7 +171,7 @@ export default function ParentDashboard() {
               
               <div className="mt-4 space-y-3">
                 {data.students && data.students.map((stu, idx) => (
-                  <div key={idx} className="bg-white/50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div key={idx} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                     <div className="font-bold text-slate-900 dark:text-white">{stu.full_name}</div>
                     <div className="text-xs text-slate-600 dark:text-slate-400 flex flex-wrap gap-x-4 mt-1">
                       <span><strong>Lớp:</strong> {stu.class_name || 'Chưa cập nhật'}</span>
