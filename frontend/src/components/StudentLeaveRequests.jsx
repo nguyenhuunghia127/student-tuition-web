@@ -16,11 +16,11 @@ export default function StudentLeaveRequests({ data, onLeaveSubmit }) {
     }
     setSubmitting(true);
     try {
-      const response = await fetch(`\${VITE_API_URL}/api/student/leave-requests\`, {
+      const response = await fetch(`${VITE_API_URL}/api/student/leave-requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': \`Bearer \${localStorage.getItem('supabase_token')}\`
+          'Authorization': `Bearer ${localStorage.getItem('supabase_token')}`
         },
         body: JSON.stringify({
           student_id: data.student?.student_id,
