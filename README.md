@@ -15,7 +15,9 @@
 
 ## 🌟 Về Sản Phẩm
 
-**EduManager Pro** (Student Tuition Web) không chỉ là một phần mềm quản lý, mà là một hệ sinh thái số hóa toàn diện dành cho các trường học, trung tâm ngoại ngữ và cơ sở giáo dục. Thay vì những bảng tính Excel cồng kềnh, EduManager Pro mang đến một giao diện **Glassmorphism** cực kỳ sang trọng, trải nghiệm **Bento Grid** hiện đại và quy trình tự động hóa lên đến 90%.
+**EduManager Pro** (Student Tuition Web) không chỉ là một phần mềm quản lý thông thường, mà là một hệ sinh thái số hóa toàn diện dành cho các trường học, trung tâm ngoại ngữ và cơ sở giáo dục. 
+
+Thay vì những bảng tính Excel cồng kềnh, EduManager Pro mang đến một giao diện **Glassmorphism** cực kỳ sang trọng, trải nghiệm **Bento Grid** hiện đại, kết nối WebSockets siêu tốc thời gian thực (**Realtime**) và quy trình tự động hóa lên đến 90%. Hệ thống được tích hợp tiêu chuẩn bảo mật khắt khe và hệ thống **Audit Logs** (nhật ký hoạt động) cấp độ doanh nghiệp.
 
 Sản phẩm cung cấp **3 cổng thông tin độc lập** đem lại trải nghiệm cá nhân hóa tối đa:
 - 👑 **Admin Portal:** Trạm điều khiển trung tâm quyền lực dành cho Ban Giám Đốc/Giáo viên.
@@ -27,22 +29,31 @@ Sản phẩm cung cấp **3 cổng thông tin độc lập** đem lại trải n
 ## 🚀 Tính Năng Cốt Lõi (Core Features)
 
 ### 👑 1. Quản Trị Trung Tâm Tự Động (Admin Portal)
-- 📊 **Bento Dashboard Real-time:** Theo dõi dòng tiền, sĩ số, tình trạng lớp học ngay tại một màn hình duy nhất.
-- 🏫 **Quản Lý Lớp Học & "Lớp Tạm" Thông Minh:** Tự động phát hiện học sinh chưa có lớp, gom nhóm tự động để quản lý học phí một chạm.
-- 💰 **Hệ Thống Thu Học Phí Tự Động (VietQR API):** Tự động sinh mã QR chứa số tiền và nội dung. Quản lý trạng thái thanh toán chuyên nghiệp.
-- 🧾 **Xuất Biên Lai PDF (Mới):** Chỉ với 1 click, hệ thống sinh ra Biên lai điện tử (PDF) chuyên nghiệp, uy tín cho mọi giao dịch.
-- ✉️ **Quy Trình Xin Nghỉ Phép Số Hóa (Mới):** Không còn việc nhắn tin xin phép rời rạc. Học sinh gửi đơn qua web, Admin duyệt/từ chối tự động bằng 1 nút bấm trên bảng chuyên dụng.
-- 📈 **Sổ Điểm Điện Tử & Phúc Khảo:** Tính GPA tự động, xử lý quy trình khiếu nại điểm số minh bạch.
-- 📚 **Kho Tài Liệu & Giao Bài Tập:** Lưu trữ tài liệu (như Google Drive), giao bài tập có deadline, chấm bài trực tiếp.
+- 📊 **Dashboard Real-time:** Theo dõi dòng tiền, sĩ số, tình trạng lớp học. Bất kỳ thay đổi nào từ phía học sinh (nộp bài, đóng tiền) đều làm mới dữ liệu lập tức trên màn hình Admin mà không cần tải lại trang.
+- 🏫 **Quản Lý Lớp Học & "Lớp Tạm" Thông Minh:** Tự động phát hiện học sinh chưa có lớp, gom nhóm để quản lý học phí một chạm.
+- 💰 **Thu Học Phí Tự Động & Hóa Đơn PDF:** Tự động sinh mã VietQR chứa nội dung thanh toán. Quản lý trạng thái thanh toán và hỗ trợ xuất **Biên lai điện tử PDF** chỉ với 1 click.
+- ✉️ **Quy Trình Xin Nghỉ Phép Số Hóa:** Học sinh gửi đơn qua web, Admin duyệt/từ chối nhanh chóng.
+- 📈 **Sổ Điểm Điện Tử & Bài Tập:** Tính GPA tự động. Quản lý bài tập (deadline, link nộp bài) và lưu trữ kho tài liệu.
+- 🛡️ **Nhật Ký Hoạt Động (Audit Logs):** Theo dõi mọi hành động (tạo tài liệu, duyệt đơn, xuất hóa đơn) chi tiết đến từng mili-giây để truy vết rõ ràng.
 
 ### 👨‍🎓 2. Không Gian Học Tập Số (Student Portal)
-- **Ví Điện Tử & Học Phí:** Theo dõi công nợ rõ ràng. Thanh toán 1 chạm bằng QR code và tải Biên lai đỏ (PDF) chứng nhận thanh toán.
-- **Quản Lý Học Tập:** Nộp bài tập online, xem điểm số, tra cứu thời khóa biểu.
-- **Gửi Đơn Xin Nghỉ (Mới):** Gửi yêu cầu nghỉ học với lý do chi tiết trực tiếp cho Admin, theo dõi trạng thái duyệt đơn theo thời gian thực.
+- **Ví Điện Tử & Học Phí:** Theo dõi công nợ, thanh toán 1 chạm bằng mã QR, tải Biên lai đóng tiền về máy.
+- **Quản Lý Học Tập:** Nhận thông báo mới nhất, nộp bài tập online, xem bảng điểm, tra cứu thời khóa biểu theo thời gian thực (Supabase Realtime).
+- **Xin Nghỉ Có Phép:** Soạn đơn xin phép gửi trực tiếp đến cho Admin và theo dõi trạng thái duyệt đơn.
 
-### 👨‍👩‍👧‍👦 3. Ứng Dụng Đồng Hành Cùng Phụ Huynh (Parent Portal)
-- **Giám Sát 360 Độ:** Xem lịch trình học tập, tiến độ làm bài, bảng điểm của con cái.
-- **Lịch Sử Giao Dịch:** Kiểm soát lịch sử đóng tiền học, tải về Biên lai PDF để lưu trữ bất cứ lúc nào.
+### 👨‍👩‍👧‍👦 3. Đồng Hành Cùng Phụ Huynh (Parent Portal)
+- **Giám Sát 360 Độ:** Xem lịch trình học tập, bảng điểm, bài tập của con cái từ xa.
+- **Lịch Sử Giao Dịch:** Kiểm soát minh bạch dòng tiền, lịch sử đóng tiền học, tải biên lai về máy bất cứ lúc nào.
+
+---
+
+## 🔒 Bảo Mật Nâng Cao (Advanced Security)
+
+Dự án áp dụng các tiêu chuẩn bảo mật khắt khe nhất, bảo vệ dữ liệu người dùng toàn diện:
+- **Authorization & Authentication (10/10):** Mã hóa mật khẩu bcrypt, quản lý phiên qua JWT kết hợp HttpOnly Cookies bảo mật.
+- **Chống Tấn Công SQL Injection:** Ngăn chặn hoàn toàn rủi ro bằng cơ chế Parameterized Queries & ORM của Supabase.
+- **Anti-XSS & Anti-CSRF:** Các cổng đầu vào được kiểm tra nghiêm ngặt (sanitization), chặn chèn script độc hại.
+- **Rate Limiting & Security Headers:** Giới hạn lưu lượng request để chống spam DDoS, thiết lập Helmet Headers an toàn.
 
 ---
 
@@ -52,10 +63,10 @@ EduManager Pro được xây dựng trên kiến trúc **Microservices-oriented*
 
 | Layer | Công Nghệ Sử Dụng | Ưu Điểm Nổi Bật |
 | :--- | :--- | :--- |
-| **Frontend** | React 19, Vite 8, Tailwind CSS v4, Framer Motion | Tốc độ load siêu việt, UI/UX hiện đại (Glassmorphism), tích hợp sẵn Dark/Light Mode. |
-| **Backend** | Node.js v22+, Express.js | API tốc độ cao, xử lý luồng mượt mà, bảo mật vững chắc (Helmet, XSS, Rate-limit). |
-| **Database** | Supabase (PostgreSQL) | Đảm bảo tính toàn vẹn ACID, cấu trúc Database chuẩn hóa 3NF. |
-| **Security**| JWT Token, Cấu hình CORS | Cơ chế Interceptor tự động gắn token, xác thực đa phân quyền an toàn tuyệt đối. |
+| **Frontend** | React 19, Vite 8, Tailwind CSS v4 | UI/UX hiện đại, tốc độ load siêu việt, thiết kế Responsive & Dark Mode. |
+| **Backend** | Node.js v22+, Express.js | API tốc độ cao, xử lý bảo mật (Helmet, XSS, Rate-limit, Audit Logs). |
+| **Database** | Supabase (PostgreSQL) | Tính toàn vẹn ACID, cấu trúc 3NF chuẩn hóa, **Supabase Realtime WebSockets**. |
+| **DevOps** | Git, Vercel, Render | Triển khai nhanh chóng, dễ dàng scale. |
 
 ---
 
@@ -68,7 +79,8 @@ EduManager Pro được xây dựng trên kiến trúc **Microservices-oriented*
 ### 1. Khởi Tạo Cơ Sở Dữ Liệu
 1. Tạo một dự án mới trên Supabase.
 2. Mở tab **SQL Editor** -> Dán toàn bộ script trong file `database.sql` và chạy (Run).
-3. Lấy `Project URL` và `Service Role Key` từ phần cài đặt API của Supabase để cấu hình Backend.
+3. Mở tab **SQL Editor** -> Dán kịch bản trong file `enable_realtime.sql` và chạy (Bắt buộc để tính năng cập nhật thời gian thực WebSockets hoạt động).
+4. Lấy `Project URL` và `Service Role Key` từ cài đặt API của Supabase để cấu hình Backend.
 
 ### 2. Chạy Máy Chủ Backend (API)
 ```bash
@@ -113,8 +125,8 @@ npm run dev
 
 ## ☁️ Triển Khai Môi Trường Thực Tế (Production Deployment)
 Sản phẩm được thiết kế để dễ dàng triển khai Cloud hoàn toàn miễn phí:
-1. **Backend:** Khuyến nghị triển khai Node.js API lên **Render.com** (hoặc Railway). Nhớ cấu hình đầy đủ Environment Variables.
-2. **Frontend:** Triển khai thư mục `frontend` lên **Vercel** hoặc **Netlify**. Đừng quên cấu hình biến môi trường `VITE_API_URL` trỏ tới link Render của Backend.
+1. **Backend:** Khuyến nghị triển khai Node.js API lên **Render.com** (hoặc Railway). Nhớ cấu hình đầy đủ Environment Variables (Đặc biệt cấu hình Cookie an toàn nếu dùng cross-domain).
+2. **Frontend:** Triển khai thư mục `frontend` lên **Vercel** hoặc **Netlify**. Cấu hình biến `VITE_API_URL` trỏ tới link Backend tương ứng.
 
 ---
 <div align="center">
