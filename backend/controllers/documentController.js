@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../supabase.js';
+import { logActivity } from '../utils/logger.js';
 
 // --- DOCUMENT CATEGORIES ---
 
@@ -24,6 +25,7 @@ export const createCategory = async (req, res) => {
       .single();
 
     if (error) throw error;
+    await logActivity('admin', req.user?.id, 'CREATE', 'document_categories', `Tạo danh mục tài liệu: ${name} (bởi ${req.user?.email || 'Admin'})`);
     res.status(201).json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -45,6 +47,7 @@ export const updateCategory = async (req, res) => {
       .single();
 
     if (error) throw error;
+    await logActivity('admin', req.user?.id, 'UPDATE', 'document_categories', `Cập nhật danh mục tài liệu ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -66,6 +69,7 @@ export const deleteCategory = async (req, res) => {
       .eq('category_id', id);
 
     if (error) throw error;
+    await logActivity('admin', req.user?.id, 'DELETE', 'document_categories', `Xóa danh mục tài liệu ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     res.json({ success: true, message: 'Đã xóa thư mục' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -141,6 +145,7 @@ export const createDocument = async (req, res) => {
       }
       throw error;
     }
+    await logActivity('admin', req.user?.id, 'CREATE', 'documents', `Tạo tài liệu mới: ${title} (bởi ${req.user?.email || 'Admin'})`);
     res.status(201).json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -174,6 +179,7 @@ export const updateDocument = async (req, res) => {
       .single();
 
     if (error) throw error;
+    await logActivity('admin', req.user?.id, 'UPDATE', 'documents', `Cập nhật tài liệu ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -196,6 +202,7 @@ export const deleteDocument = async (req, res) => {
       .eq('document_id', id);
 
     if (error) throw error;
+    await logActivity('admin', req.user?.id, 'DELETE', 'documents', `Xóa tài liệu ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -223,6 +230,7 @@ export const assignDocument = async (req, res) => {
       }
       throw error;
     }
+    await logActivity('admin', req.user?.id, 'CREATE', 'document_access', `Cấp quyền truy cập tài liệu ID: ${document_id} cho bài tập ID: ${assignment_id} (bởi ${req.user?.email || 'Admin'})`);
     res.status(201).json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -239,6 +247,7 @@ export const removeAssignedDocument = async (req, res) => {
       .match({ assignment_id, document_id });
 
     if (error) throw error;
+    await logActivity('admin', req.user?.id, 'DELETE', 'document_access', `Gỡ quyền truy cập tài liệu ID: ${document_id} khỏi bài tập ID: ${assignment_id} (bởi ${req.user?.email || 'Admin'})`);
     res.json({ message: 'Assigned document removed successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

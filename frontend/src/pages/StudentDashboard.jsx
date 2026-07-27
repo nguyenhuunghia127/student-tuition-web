@@ -12,6 +12,7 @@ import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import StudentLeaveRequests from '../components/StudentLeaveRequests.jsx'
 import { generateInvoice } from '../utils/pdfGenerator.js'
+import { supabase } from '../supabase.js'
 
 
 export default function StudentDashboard() {
@@ -133,6 +134,17 @@ export default function StudentDashboard() {
     const profile = JSON.parse(savedStudent)
     setStudent(profile)
     fetchDashboardData(profile)
+
+    // Lắng nghe Realtime từ Supabase
+    const studentChannel = supabase.channel(`student-realtime-${profile.student_id}`)
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        fetchDashboardData(profile);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(studentChannel);
+    };
   }, [navigate])
 
   async function fetchDashboardData(profile) {
@@ -151,7 +163,10 @@ export default function StudentDashboard() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch (e) {}
     localStorage.removeItem('student_profile')
     navigate('/')
   }

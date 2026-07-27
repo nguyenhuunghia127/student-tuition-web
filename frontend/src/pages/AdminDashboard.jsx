@@ -8,6 +8,7 @@ import {
   Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight, LayoutGrid, MessageSquare
 } from 'lucide-react'
 import { API_URL } from '../config.js'
+import { supabase } from '../supabase.js'
 import { generateInvoice } from '../utils/pdfGenerator';
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
@@ -170,8 +171,27 @@ export default function AdminDashboard() {
 
     fetchAllAdminData()
 
+    // Lắng nghe Realtime từ Supabase
+    const adminChannel = supabase.channel('admin-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        const table = payload.table;
+        if (table === 'notifications' || table === 'activity_logs') fetchNotifications();
+        else if (table === 'tuition_fees') fetchTuition();
+        else if (table === 'grades') fetchGrades();
+        else if (table === 'schedules') fetchSchedules();
+        else if (table === 'students' || table === 'users') fetchStudents();
+        else if (table === 'classes') fetchClasses();
+        else if (table === 'assignments' || table === 'assignment_submissions') {
+          fetchAssignments();
+          fetchAssignmentGrades();
+        }
+        else if (table === 'documents' || table === 'document_categories' || table === 'assignment_documents') fetchRepoDocuments();
+      })
+      .subscribe();
+
     return () => {
       window.fetch = originalFetch; // Khôi phục fetch cũ khi rời trang
+      supabase.removeChannel(adminChannel);
     };
   }, [navigate])
 
@@ -410,7 +430,10 @@ export default function AdminDashboard() {
     if (data.success) setSubmissions(data.data)
   }
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch (e) {}
     localStorage.removeItem('admin_session')
     navigate('/admin/login')
   }
@@ -1618,61 +1641,108 @@ export default function AdminDashboard() {
                 </div>
               </motion.div>
 
-              {/* Lịch sử Thông báo gửi đi (Timeline style) */}
-              <motion.div whileHover={{ scale: 1.01 }} className="glass-card glow-card rounded-3xl p-6 relative flex flex-col h-[400px] overflow-hidden">
-                <div className="flex items-center justify-between mb-6 z-10">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
-                    Hoạt Động Mới Nhất
+              {/* Lịch sử Thông báo gửi đi (Timeline style) - Premium Redesign */}
+              <motion.div 
+                whileHover={{ y: -5, boxShadow: '0 20px 40px -15px rgba(0,0,0,0.1)' }} 
+                className="relative flex flex-col h-[450px] overflow-hidden rounded-[2rem] border border-white/40 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-lg dark:shadow-none p-6 sm:p-8 transition-all duration-300"
+              >
+                {/* Decorative background gradients */}
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/20 dark:bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/20 dark:bg-purple-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+
+                <div className="flex items-center justify-between mb-8 z-10 relative">
+                  <h3 className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-white dark:to-slate-400 uppercase tracking-[0.1em] flex items-center gap-3">
+                    <div className="relative flex items-center justify-center w-6 h-6">
+                      <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-20"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 shadow-[0_0_10px_rgba(99,102,241,0.6)]"></div>
+                    </div>
+                    Hoạt Động Hệ Thống
                   </h3>
-                  <span className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1 rounded-full border border-indigo-500/20">
-                    {notifications.length} Tin
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => fetchNotifications()} 
+                      className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors shadow-sm"
+                      title="Làm mới hoạt động"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                    <span className="relative flex items-center justify-center px-4 py-1.5 rounded-full overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 backdrop-blur-md"></div>
+                      <div className="absolute inset-0 border border-white/40 dark:border-white/10 rounded-full"></div>
+                      <span className="relative z-10 text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">
+                        {notifications.length} BẢN GHI
+                      </span>
+                    </span>
+                  </div>
                 </div>
                 
                 {notifications.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 opacity-60">
-                    <Bell className="w-8 h-8 mb-3 opacity-20" />
-                    <p className="text-xs font-medium">Chưa có hoạt động nào</p>
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 opacity-70 z-10">
+                    <div className="w-16 h-16 mb-4 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-inner">
+                      <Bell className="w-8 h-8 opacity-40 text-slate-500" />
+                    </div>
+                    <p className="text-sm font-semibold tracking-wide">Hệ thống tĩnh lặng</p>
+                    <p className="text-[10px] mt-1 opacity-60">Chưa có hoạt động nào được ghi nhận</p>
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto pr-2 relative custom-scrollbar z-10">
-                    <div className="absolute left-3 top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-700/50"></div>
-                    <div className="space-y-6 pb-2">
+                  <div className="flex-1 overflow-y-auto pr-3 relative custom-scrollbar z-10 group/timeline">
+                    {/* Animated vertical line */}
+                    <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-indigo-500/50 via-purple-500/20 to-transparent rounded-full"></div>
+                    
+                    <div className="space-y-8 pb-4">
                       {notifications.slice(0, 15).map((notif, idx) => {
                         const isTargeted = notif.target_type === 'student' || notif.target_type === 'targeted' || (notif.target_id && notif.target_id.startsWith('student:'))
-                        const isGlobal = !notif.target_type || notif.target_type === 'global' || notif.target_id === ''
                         const isClass = notif.target_type === 'class' || notif.target_type === 'mixed'
-                        const colorClass = isTargeted ? 'bg-rose-500' : isClass ? 'bg-amber-500' : 'bg-indigo-500'
+                        const isSystem = notif.target_type === 'system' || notif.type === 'system'
+                        
+                        const theme = isSystem
+                          ? { from: 'from-emerald-400', to: 'to-teal-500', bg: 'bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', label: 'Hệ thống' }
+                          : isTargeted 
+                            ? { from: 'from-rose-400', to: 'to-orange-500', bg: 'bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', label: 'Cá nhân' }
+                            : isClass 
+                              ? { from: 'from-amber-400', to: 'to-orange-500', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', label: 'Lớp học' }
+                              : { from: 'from-indigo-400', to: 'to-purple-500', bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', label: 'Toàn trường' }
+                        
                         return (
                           <motion.div 
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={{ opacity: 0, x: -30 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.05 }}
+                            transition={{ delay: idx * 0.1, type: "spring", stiffness: 100 }}
                             key={notif.notification_id} 
-                            className="relative pl-10 group"
+                            className="relative pl-12 group"
                           >
-                            <div className={`absolute left-0 top-2 w-6 h-6 rounded-full flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm z-10 group-hover:scale-110 transition-transform`}>
-                              <div className={`w-2 h-2 rounded-full ${colorClass} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} style={{ shadowColor: isTargeted ? '#f43f5e' : '#6366f1' }}></div>
+                            {/* Dot indicator */}
+                            <div className="absolute left-[-2px] top-1 w-8 h-8 flex items-center justify-center">
+                              <div className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${theme.from} ${theme.to} shadow-lg ring-4 ring-white dark:ring-slate-900 group-hover:scale-125 group-hover:ring-indigo-100 dark:group-hover:ring-indigo-900/30 transition-all duration-300 z-20`}></div>
                             </div>
                             
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-sm">
-                              <div className="flex justify-between items-start gap-2 mb-1.5">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">{notif.title}</h4>
-                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${isTargeted ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : isClass ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'}`}>
-                                    {isTargeted ? 'Cá nhân' : isClass ? 'Lớp học' : 'Toàn trường'}
+                            {/* Activity Card */}
+                            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl p-5 border border-white/60 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-800 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300 overflow-hidden">
+                              {/* Hover glow effect */}
+                              <div className={`absolute inset-0 bg-gradient-to-r ${theme.from} ${theme.to} opacity-0 group-hover:opacity-[0.03] dark:group-hover:opacity-5 transition-opacity duration-300 pointer-events-none`}></div>
+                              
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-2.5 relative z-10">
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
+                                    {notif.title}
+                                  </h4>
+                                  <span className={`text-[9px] font-black uppercase tracking-[0.1em] px-2 py-1 rounded-md ${theme.bg} ${theme.text} border border-current/10`}>
+                                    {theme.label}
                                   </span>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">
+                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap bg-slate-100 dark:bg-slate-900/50 px-2 py-1 rounded-md">
                                   {new Date(notif.created_at).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">{notif.message}</p>
+                              
+                              <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed relative z-10">
+                                {notif.message}
+                              </p>
                               
                               {notif.target_id && notif.target_id !== '' && (
-                                <div className="mt-2 text-[10px] text-slate-400 dark:text-slate-500">
-                                  Đến: <span className="font-semibold text-slate-500 dark:text-slate-400">{notif.target_id}</span>
+                                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50 text-[11px] flex items-center gap-1.5 text-slate-500">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                                  <span>Gửi đến: <strong className="text-slate-700 dark:text-slate-300 ml-0.5">{notif.target_id}</strong></span>
                                 </div>
                               )}
                             </div>

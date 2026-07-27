@@ -3,6 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import xss from 'xss-clean';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
+import { morganStream } from './utils/loggerConfig.js';
 import authRoutes from './routes/authRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -12,8 +15,25 @@ import documentRoutes from './routes/documentRoutes.js';
 
 const app = express();
 
+// Bật Logging
+app.use(morgan('combined', { stream: morganStream }));
+
 // Security Middlewares
-app.use(helmet()); // Thiết lập HTTP Security Headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:", "https://*"],
+        connectSrc: ["'self'", "https://*"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+app.use(cookieParser());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
@@ -37,7 +57,8 @@ const corsOptions = {
     } else {
       callback(new Error('Truy cập bị từ chối bởi cấu hình CORS'));
     }
-  }
+  },
+  credentials: true, // Quan trọng để gửi nhận HttpOnly Cookies
 };
 app.use(cors(corsOptions));
 

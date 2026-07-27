@@ -504,6 +504,7 @@ export const submitLeaveRequest = async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('leave_requests').insert({ student_id, leave_date, reason }).select().single();
     if (error) return errorResponse(res, 'Lỗi nộp đơn xin phép', error);
+    await logActivity('student', student_id, 'CREATE', 'leave_requests', `Học sinh/Phụ huynh gửi đơn xin nghỉ phép ngày ${leave_date}`);
     return successResponse(res, data, 'Nộp đơn xin phép thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);

@@ -10,6 +10,7 @@ import { API_URL } from '../config.js'
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import { generateInvoice } from '../utils/pdfGenerator.js'
+import { supabase } from '../supabase.js'
 
 export default function ParentDashboard() {
   const navigate = useNavigate()
@@ -105,9 +106,23 @@ export default function ParentDashboard() {
     const profile = JSON.parse(savedParent)
     setParent(profile)
     fetchDashboardData(profile)
+
+    // Lắng nghe Realtime từ Supabase
+    const parentChannel = supabase.channel(`parent-realtime-${profile.parent_id}`)
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        fetchDashboardData(profile);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(parentChannel);
+    };
   }, [navigate])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch (e) {}
     localStorage.removeItem('parent_profile')
     navigate('/')
   }

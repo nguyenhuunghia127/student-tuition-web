@@ -51,8 +51,15 @@ export const login = async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Thiết lập HttpOnly Cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 giờ
+    });
+
     return successResponse(res, {
-      token: token,
       user: {
         id: userId,
         email: userEmail,
@@ -62,4 +69,28 @@ export const login = async (req, res) => {
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống đăng nhập', error, 500);
   }
+};
+
+export const logout = async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      await logActivity(
+        decoded.role || 'unknown',
+        decoded.id || 'unknown',
+        'LOGOUT',
+        'auth',
+        `${decoded.role === 'admin' ? 'Admin' : (decoded.role === 'student' ? 'Học sinh' : 'Người dùng')} đăng xuất khỏi hệ thống${decoded.role === 'admin' && decoded.email ? ' (bởi ' + decoded.email + ')' : ''}`
+      );
+    }
+  } catch (error) {
+    console.error('Logout logging error:', error);
+  }
+
+  res.cookie('token', '', {
+    httpOnly: true,
+    expires: new Date(0) // Xóa cookie
+  });
+  return successResponse(res, null, 'Đăng xuất thành công');
 };

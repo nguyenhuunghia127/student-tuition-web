@@ -121,7 +121,7 @@ export const createClass = async (req, res) => {
       await Promise.all(matchingStudents.map(st => syncStudentClassesData(st.student_id)));
     }
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'classes', `Tạo lớp học mới: ${class_name}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'classes', `Tạo lớp học mới: ${class_name} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Tạo lớp học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -154,7 +154,7 @@ export const updateClass = async (req, res) => {
       await Promise.all(stClasses.map(sc => syncStudentClassesData(sc.student_id)));
     }
 
-    await logActivity('admin', req.user?.id, 'UPDATE', 'classes', `Cập nhật lớp học ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'classes', `Cập nhật lớp học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật lớp học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -187,7 +187,7 @@ export const assignStudentsToClass = async (req, res) => {
     // Đồng bộ class_name và enrolled_subjects cho bảng students
     await Promise.all(student_ids.map(stId => syncStudentClassesData(stId)));
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'student_classes', `Gán ${student_ids.length} học sinh vào lớp ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'student_classes', `Gán ${student_ids.length} học sinh vào lớp ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Gán học sinh vào lớp thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -209,7 +209,7 @@ export const removeStudentFromClass = async (req, res) => {
     // Sync student data
     await syncStudentClassesData(student_id);
 
-    await logActivity('admin', req.user?.id, 'DELETE', 'student_classes', `Xóa học sinh ${student_id} khỏi lớp ${id}`);
+    await logActivity('admin', req.user?.id, 'DELETE', 'student_classes', `Xóa học sinh ${student_id} khỏi lớp ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa học sinh khỏi lớp thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -231,7 +231,7 @@ export const deleteClass = async (req, res) => {
       await Promise.all(stClasses.map(sc => syncStudentClassesData(sc.student_id)));
     }
 
-    await logActivity('admin', req.user?.id, 'DELETE', 'classes', `Xóa lớp học ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'DELETE', 'classes', `Xóa lớp học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa lớp học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -266,7 +266,7 @@ export const createSubject = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi tạo môn học', error);
-    await logActivity('admin', req.user?.id, 'CREATE', 'subjects', `Tạo môn học mới: ${subject_name}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'subjects', `Tạo môn học mới: ${subject_name} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Tạo môn học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -286,7 +286,7 @@ export const updateSubject = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi cập nhật môn học', error);
-    await logActivity('admin', req.user?.id, 'UPDATE', 'subjects', `Cập nhật môn học ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'subjects', `Cập nhật môn học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật môn học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -298,7 +298,7 @@ export const deleteSubject = async (req, res) => {
   try {
     const { error } = await supabaseAdmin.from('subjects').delete().eq('subject_id', id);
     if (error) return errorResponse(res, 'Không thể xóa môn học này', error);
-    await logActivity('admin', req.user?.id, 'DELETE', 'subjects', `Xóa môn học ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'DELETE', 'subjects', `Xóa môn học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa môn học thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -371,7 +371,7 @@ export const createStudent = async (req, res) => {
       await supabaseAdmin.from('student_classes').insert([{ student_id: data.student_id, class_id: targetClassId }]);
     }
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'students', `Thêm học sinh mới: ${full_name}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'students', `Thêm học sinh mới: ${full_name} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Thêm học sinh thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -413,7 +413,7 @@ export const updateStudent = async (req, res) => {
       }
     }
 
-    await logActivity('admin', req.user?.id, 'UPDATE', 'students', `Cập nhật thông tin học sinh: ${full_name}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'students', `Cập nhật thông tin học sinh: ${full_name} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -425,7 +425,7 @@ export const deleteStudent = async (req, res) => {
   try {
     const { error } = await supabaseAdmin.from('students').update({ is_deleted: true }).eq('student_id', id);
     if (error) return errorResponse(res, 'Lỗi xóa học sinh', error);
-    await logActivity('admin', req.user?.id, 'DELETE', 'students', `Xóa học sinh ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'DELETE', 'students', `Xóa học sinh ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa học sinh thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -441,7 +441,7 @@ export const deleteMultipleStudents = async (req, res) => {
   try {
     const { error } = await supabaseAdmin.from('students').update({ is_deleted: true }).in('student_id', student_ids);
     if (error) return errorResponse(res, 'Lỗi xóa danh sách học sinh', error);
-    await logActivity('admin', req.user?.id, 'DELETE', 'students', `Xóa hàng loạt ${student_ids.length} học sinh`);
+    await logActivity('admin', req.user?.id, 'DELETE', 'students', `Xóa hàng loạt ${student_ids.length} học sinh (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -493,7 +493,7 @@ export const importStudents = async (req, res) => {
     if (error) throw error;
 
     const inserted = payloads.length;
-    await logActivity('admin', req.user?.id, 'IMPORT', 'students', `Import thành công ${inserted} học sinh từ file Excel`);
+    await logActivity('admin', req.user?.id, 'IMPORT', 'students', `Import thành công ${inserted} học sinh từ file Excel (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, { count: inserted }, `Import thành công ${inserted} học sinh`);
   } catch (error) {
     return errorResponse(res, 'Lỗi xử lý file Excel', error, 500);
@@ -524,6 +524,7 @@ export const exportStudents = async (req, res) => {
     const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=danh_sach_hoc_sinh.xlsx');
+    await logActivity('admin', req.user?.id, 'EXPORT', 'students', `Xuất danh sách học sinh ra file Excel (bởi ${req.user?.email || 'Admin'})`);
     return res.send(buffer);
   } catch (error) {
     return errorResponse(res, 'Lỗi xuất Excel', error, 500);
@@ -591,7 +592,7 @@ export const createGrade = async (req, res) => {
 
     if (error) return errorResponse(res, 'Lỗi lưu điểm số', error);
 
-    await logActivity('admin', req.user?.id, 'UPDATE', 'grades', `Cập nhật điểm cho học sinh ID: ${student_id}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'grades', `Cập nhật điểm cho học sinh ID: ${student_id} (bởi ${req.user?.email || 'Admin'})`);
     
     await autoNotify('Cập nhật điểm số', `Điểm môn ${gradeData.subject_name} của bạn vừa được cập nhật.`, 'student', `student:${student_id}`);
     
@@ -642,6 +643,7 @@ export const importGrades = async (req, res) => {
       count++;
     }
 
+    await logActivity('admin', req.user?.id, 'IMPORT', 'grades', `Nhập điểm từ file Excel cho ${count} lượt học sinh (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, { count }, `Đã nhập điểm cho ${count} lượt học sinh`);
   } catch (error) {
     return errorResponse(res, 'Lỗi xử lý file điểm', error, 500);
@@ -674,6 +676,7 @@ export const exportGrades = async (req, res) => {
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=bang_diem.xlsx');
+    await logActivity('admin', req.user?.id, 'EXPORT', 'grades', `Xuất bảng điểm ra file Excel (bởi ${req.user?.email || 'Admin'})`);
     return res.send(buffer);
   } catch (error) {
     return errorResponse(res, 'Lỗi xuất Excel bảng điểm', error, 500);
@@ -702,6 +705,7 @@ export const updateGradeSettings = async (req, res) => {
       resData = await supabaseAdmin.from('grade_settings').insert(payload).select().single();
     }
 
+    await logActivity('admin', req.user?.id, 'UPDATE', 'grade_settings', `Cập nhật cấu hình hệ số điểm (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, resData.data, 'Cập nhật hệ số điểm thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi cập nhật hệ số', error, 500);
@@ -735,6 +739,7 @@ export const updateGradeAppealStatus = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi cập nhật trạng thái phúc khảo', error);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'grade_appeals', `Cập nhật trạng thái đơn phúc khảo ID: ${id} thành ${status} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật đơn phúc khảo thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -795,7 +800,7 @@ export const createAssignment = async (req, res) => {
       await supabaseAdmin.from('assignment_documents').insert(docLinks).then(() => {}).catch(() => {});
     }
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'assignments', `Tạo bài tập mới: ${title}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'assignments', `Tạo bài tập mới: ${title} (bởi ${req.user?.email || 'Admin'})`);
     await autoNotify('Bài tập mới', `Bài tập mới: ${title} (Hạn nộp: ${new Date(deadline).toLocaleDateString('vi-VN')})`, target_type, target_id);
     return successResponse(res, assignment, 'Tạo bài tập thành công');
   } catch (error) {
@@ -816,6 +821,7 @@ export const updateAssignment = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi cập nhật bài tập', error);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'assignments', `Cập nhật bài tập ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật bài tập thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -827,6 +833,7 @@ export const deleteAssignment = async (req, res) => {
   try {
     const { error } = await supabaseAdmin.from('assignments').delete().eq('assignment_id', id);
     if (error) return errorResponse(res, 'Lỗi xóa bài tập', error);
+    await logActivity('admin', req.user?.id, 'DELETE', 'assignments', `Xóa bài tập ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa bài tập thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -862,6 +869,7 @@ export const gradeSubmission = async (req, res) => {
 
     if (error) return errorResponse(res, 'Lỗi chấm bài', error);
     await autoNotify('Đã chấm điểm bài tập', `Bài tập của bạn đã được chấm: ${grade} điểm.`, 'student', `student:${data.student_id}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'assignment_submissions', `Chấm bài nộp ID: ${submission_id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Chấm bài thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -880,7 +888,7 @@ export const updateSubmissionFile = async (req, res) => {
       .select()
       .single();
     if (error) return errorResponse(res, 'Lỗi cập nhật bài nộp', error);
-    await logActivity('admin', req.user?.id, 'UPDATE', 'assignment_submissions', `Cập nhật link bài nộp ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'assignment_submissions', `Cập nhật link bài nộp ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     await autoNotify('Admin đã sửa bài nộp', `Admin vừa cập nhật link bài nộp của bạn.`, 'student', `student:${data.student_id}`);
     return successResponse(res, data, 'Cập nhật bài nộp thành công');
   } catch (error) {
@@ -947,7 +955,7 @@ export const createTuition = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi tạo khoản thu', error);
-    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Tạo khoản thu mới: ${title}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Tạo khoản thu mới: ${title} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Tạo khoản thu thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -967,6 +975,7 @@ export const updateTuition = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi cập nhật học phí', error);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'tuition_fees', `Cập nhật khoản thu ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -993,7 +1002,7 @@ export const deleteMultipleTuitions = async (req, res) => {
   try {
     const { error } = await supabaseAdmin.from('tuition_fees').delete().in('fee_id', fee_ids);
     if (error) return errorResponse(res, 'Lỗi xóa danh sách học phí', error);
-    await logActivity('admin', req.user?.id, 'DELETE', 'tuition_fees', `Xóa hàng loạt ${fee_ids.length} khoản học phí`);
+    await logActivity('admin', req.user?.id, 'DELETE', 'tuition_fees', `Xóa hàng loạt ${fee_ids.length} khoản học phí (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1048,7 +1057,7 @@ export const assignClassTuition = async (req, res) => {
     let msg = `Đã gán học phí thành công cho ${validStudents.length} học sinh`;
     if (skipped > 0) msg += ` (Bỏ qua ${skipped} học sinh đã có khoản phí này)`;
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán khoản học phí "${title}" cho ${validStudents.length} học sinh (Bỏ qua ${skipped})`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán khoản học phí "${title}" cho ${validStudents.length} học sinh (Bỏ qua ${skipped}) (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, { count: validStudents.length }, msg);
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1178,7 +1187,7 @@ export const assignAdvancedTuition = async (req, res) => {
     let msg = `Đã gán học phí thành công! Tạo mới ${batchTuitions.length} khoản thu.`;
     if (skippedCount > 0) msg += ` (Bỏ qua ${skippedCount} khoản trùng lặp)`;
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán học phí linh hoạt cho ${targetStudents.length} học sinh (${subjectNames})`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'tuition_fees', `Gán học phí linh hoạt cho ${targetStudents.length} học sinh (${subjectNames}) (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, { count: batchTuitions.length }, msg);
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống gán học phí', error, 500);
@@ -1216,7 +1225,7 @@ export const payManual = async (req, res) => {
       });
     }
 
-    await logActivity('admin', req.user?.id, 'PAYMENT', 'tuition_fees', `Xác nhận thanh toán tiền mặt cho khoản phí: ${fee.title}`);
+    await logActivity('admin', req.user?.id, 'PAYMENT', 'tuition_fees', `Xác nhận thanh toán tiền mặt cho khoản phí: ${fee.title} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xác nhận đã thu tiền thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1228,6 +1237,7 @@ export const unpayManual = async (req, res) => {
   try {
     await supabaseAdmin.from('tuition_fees').update({ status: 'unpaid' }).eq('fee_id', fee_id);
     await supabaseAdmin.from('payment_history').delete().eq('fee_id', fee_id);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'tuition_fees', `Hủy thanh toán khoản thu ID: ${fee_id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Đã chuyển về trạng thái chưa thanh toán');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1277,7 +1287,7 @@ export const createSchedule = async (req, res) => {
       .single();
 
     if (error) return errorResponse(res, 'Lỗi tạo lịch học', error);
-    await logActivity('admin', req.user?.id, 'CREATE', 'schedules', `Tạo buổi học ngày ${study_date}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'schedules', `Tạo buổi học ngày ${study_date} (bởi ${req.user?.email || 'Admin'})`);
     
     await autoNotify('Lịch học mới', `Lịch học mới: ${payload.subject_name || 'Môn chung'} vào ngày ${new Date(study_date).toLocaleDateString('vi-VN')}.`, payload.target_type, payload.target_id);
     
@@ -1303,7 +1313,7 @@ export const createScheduleBatch = async (req, res) => {
     const { error } = await supabaseAdmin.from('schedules').insert(batch);
     if (error) return errorResponse(res, 'Lỗi tạo lịch hàng loạt', error);
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'schedules', `Tạo hàng loạt ${batch.length} buổi học`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'schedules', `Tạo hàng loạt ${batch.length} buổi học (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, { count: batch.length }, `Tạo thành công ${batch.length} buổi học`);
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1327,6 +1337,7 @@ export const updateSchedule = async (req, res) => {
 
     if (error) return errorResponse(res, 'Lỗi cập nhật lịch học', error);
     await autoNotify('Cập nhật lịch học', `Lịch học ngày ${new Date(data.study_date).toLocaleDateString('vi-VN')} đã được cập nhật.`, data.target_type, data.target_id);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'schedules', `Cập nhật buổi học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1338,6 +1349,7 @@ export const deleteSchedule = async (req, res) => {
   try {
     const { error } = await supabaseAdmin.from('schedules').delete().eq('schedule_id', id);
     if (error) return errorResponse(res, 'Lỗi xóa buổi học', error);
+    await logActivity('admin', req.user?.id, 'DELETE', 'schedules', `Xóa buổi học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Xóa thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1420,7 +1432,7 @@ export const saveScheduleAttendance = async (req, res) => {
       if (error) throw error;
     }
 
-    await logActivity('admin', req.user?.id, 'UPDATE', 'attendances', `Lưu dữ liệu điểm danh buổi học ID: ${id}`);
+    await logActivity('admin', req.user?.id, 'UPDATE', 'attendances', `Lưu dữ liệu điểm danh buổi học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, null, 'Lưu điểm danh thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi lưu điểm danh', error, 500);
@@ -1475,7 +1487,7 @@ export const createNotification = async (req, res) => {
       await supabaseAdmin.from('notification_targets').insert(targetPayload).then(() => {}).catch(() => {});
     }
 
-    await logActivity('admin', req.user?.id, 'CREATE', 'notifications', `Tạo thông báo: ${title}`);
+    await logActivity('admin', req.user?.id, 'CREATE', 'notifications', `Tạo thông báo: ${title} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, notif, 'Tạo thông báo thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
@@ -1604,6 +1616,7 @@ export const updateLeaveStatus = async (req, res) => {
       is_global: false
     });
     
+    await logActivity('admin', req.user?.id, 'UPDATE', 'leave_requests', `Cập nhật trạng thái đơn nghỉ phép ID: ${id} thành ${status} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
