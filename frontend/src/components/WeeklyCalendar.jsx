@@ -148,32 +148,90 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
   };
 
   // ── PDF Export ──
-  const handleExportPDF = async () => {
+  const handleExportPDF = () => {
     try {
-      const element = document.getElementById('calendar-export-area');
-      if (!element) return;
-      
-      // Temporarily remove rounded corners and shadow for better PDF rendering
-      const originalClass = element.className;
-      element.className = "bg-white dark:bg-slate-900";
-      
-      const canvas = await html2canvas(element, { 
-        scale: 2,
-        useCORS: true,
-        backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff'
-      });
-      
-      element.className = originalClass;
+      const removeTones = (str) => {
+        if (!str) return '';
+        return String(str)
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+      };
 
-      const imgData = canvas.toDataURL('image/png');
-      const doc = new jsPDF({
-        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+      doc.text('BANG PHAN CONG LICH HOC', 14, 15);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
       
-      doc.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-      const filename = viewMode === 'week' ? `lich-hoc-tuan-${monday.toISOString().split('T')[0]}.pdf` : `lich-hoc-thang-${currentDate.toISOString().split('T')[0]}.pdf`;
+      const label = viewMode === 'week'
+        ? `Tuan: ${monday.toLocaleDateString('vi-VN')} - ${weekDays[6].toLocaleDateString('vi-VN')}`
+        : `Thang: ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+      doc.text(removeTones(label), 14, 22);
+
+      const rows = [];
+      if (viewMode === 'week') {
+        weekDays.forEach((day, i) => {
+          const ds = toDateStr(day);
+          const dayScheds = dedup(filtered.filter(s => s.study_date && s.study_date.startsWith(ds)));
+          dayScheds.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')).forEach(sch => {
+            const col = getStatusColor(sch);
+            rows.push([
+              `Thu ${i === 6 ? 'CN' : i + 2} (${day.getDate()}/${day.getMonth() + 1})`,
+              removeTones(sch.subject_name || ''),
+              `${sch.start_time?.substring(0, 5)} - ${sch.end_time?.substring(0, 5)}`,
+              removeTones(sch.room_name || ''),
+              removeTones(getFormattedTarget(sch)),
+              col.status === 'attended' ? 'Da diem danh' : col.status === 'missed' ? 'Chua diem danh' : 'Sap toi',
+              removeTones(notes[sch.schedule_id] || '')
+            ]);
+          });
+        });
+
+        autoTable(doc, {
+          head: [['Ngay', 'Mon hoc', 'Gio hoc', 'Phong', 'Doi tuong', 'Trang thai', 'Ghi chu']],
+          body: rows.length > 0 ? rows : [['—', 'Khong co lich hoc trong tuan nay', '', '', '', '', '']],
+          startY: 27,
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [99, 102, 241], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 255] }
+        });
+      } else {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        const monthScheds = filtered.filter(s => {
+          if (!s.study_date) return false;
+          const d = new Date(s.study_date);
+          return d.getFullYear() === year && d.getMonth() === month;
+        });
+
+        monthScheds.sort((a, b) => a.study_date.localeCompare(b.study_date) || (a.start_time || '').localeCompare(b.start_time || '')).forEach(sch => {
+          const col = getStatusColor(sch);
+          const d = new Date(sch.study_date);
+          const dayName = d.getDay() === 0 ? 'CN' : `Thu ${d.getDay() + 1}`;
+          rows.push([
+            `${dayName} (${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()})`,
+            removeTones(sch.subject_name || ''),
+            `${sch.start_time?.substring(0, 5)} - ${sch.end_time?.substring(0, 5)}`,
+            removeTones(sch.room_name || ''),
+            removeTones(getFormattedTarget(sch)),
+            col.status === 'attended' ? 'Da diem danh' : col.status === 'missed' ? 'Chua diem danh' : 'Sap toi'
+          ]);
+        });
+
+        autoTable(doc, {
+          head: [['Ngay', 'Mon hoc', 'Gio hoc', 'Phong', 'Doi tuong', 'Trang thai']],
+          body: rows.length > 0 ? rows : [['—', 'Khong co lich hoc trong thang nay', '', '', '', '']],
+          startY: 27,
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [99, 102, 241], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 255] }
+        });
+      }
+
+      const filename = viewMode === 'week' 
+        ? `lich-hoc-tuan-${monday.toISOString().split('T')[0]}.pdf` 
+        : `lich-hoc-thang-${currentDate.getFullYear()}-${currentDate.getMonth() + 1}.pdf`;
       doc.save(filename);
     } catch (err) {
       console.error('PDF export error:', err);

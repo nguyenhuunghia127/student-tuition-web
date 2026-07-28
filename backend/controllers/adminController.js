@@ -1261,6 +1261,100 @@ export const getSchedules = async (req, res) => {
   }
 };
 
+// Helper to check time overlap between two intervals [start1, end1] and [start2, end2]
+const isTimeOverlapping = (s1, e1, s2, e2) => {
+  return (s1 < e2) && (e1 > s2);
+};
+
+// Check if new schedule payloads conflict with existing schedules in DB or within themselves
+const checkScheduleConflicts = async (newSchedules, excludeScheduleId = null) => {
+  const { data: existingSchedules, error } = await supabaseAdmin.from('schedules').select('*');
+  if (error) return null; // If DB query fails, proceed gracefully
+
+  const activeExisting = (existingSchedules || []).filter(s => s.schedule_id !== excludeScheduleId);
+
+  const getTargets = (sch) => {
+    let classes = [];
+    let phones = [];
+    let names = [];
+    if (sch.target_type === 'mixed') {
+      try {
+        const p = typeof sch.target_id === 'string' ? JSON.parse(sch.target_id) : sch.target_id;
+        classes = p.classes || [];
+        phones = p.phones || [];
+        names = p.names || [];
+      } catch (e) {}
+    } else if (sch.target_type === 'class' && sch.target_id) {
+      classes = String(sch.target_id).split(',').map(c => c.trim()).filter(Boolean);
+    } else if (sch.target_type === 'student_phone' && sch.target_id) {
+      phones = String(sch.target_id).split(',').map(c => c.trim()).filter(Boolean);
+    } else if (sch.target_type === 'student_name' && sch.target_id) {
+      names = String(sch.target_id).split(',').map(c => c.trim()).filter(Boolean);
+    }
+    return { classes, phones, names, isGlobal: sch.target_type === 'global' };
+  };
+
+  for (const item of newSchedules) {
+    const itemDate = String(item.study_date).split('T')[0];
+    const itemStart = item.start_time ? item.start_time.substring(0, 5) : '';
+    const itemEnd = item.end_time ? item.end_time.substring(0, 5) : '';
+    const itemRoom = (item.room_name || '').trim().toLowerCase();
+    const itemTargets = getTargets(item);
+
+    for (const exist of activeExisting) {
+      const existDate = String(exist.study_date).split('T')[0];
+      if (existDate !== itemDate) continue;
+
+      const existStart = exist.start_time ? exist.start_time.substring(0, 5) : '';
+      const existEnd = exist.end_time ? exist.end_time.substring(0, 5) : '';
+
+      if (isTimeOverlapping(itemStart, itemEnd, existStart, existEnd)) {
+        const existRoom = (exist.room_name || '').trim().toLowerCase();
+        
+        // 1. Room conflict
+        if (itemRoom && existRoom && itemRoom === existRoom) {
+          return `Trùng lịch phòng học "${item.room_name}": Đã có ca môn ${exist.subject_name} (${existStart} - ${existEnd}) ngày ${itemDate}.`;
+        }
+
+        // 2. Class conflict
+        const existTargets = getTargets(exist);
+        const sharedClasses = itemTargets.classes.filter(c => existTargets.classes.includes(c));
+        if (sharedClasses.length > 0) {
+          return `Trùng lịch lớp [${sharedClasses.join(', ')}]: Đã có ca môn ${exist.subject_name} (${existStart} - ${existEnd}) ngày ${itemDate}.`;
+        }
+      }
+    }
+  }
+
+  // Internal conflict check for batch items
+  if (newSchedules.length > 1) {
+    for (let i = 0; i < newSchedules.length; i++) {
+      for (let j = i + 1; j < newSchedules.length; j++) {
+        const a = newSchedules[i];
+        const b = newSchedules[j];
+        const aDate = String(a.study_date).split('T')[0];
+        const bDate = String(b.study_date).split('T')[0];
+        if (aDate !== bDate) continue;
+
+        const aStart = a.start_time ? a.start_time.substring(0, 5) : '';
+        const aEnd = a.end_time ? a.end_time.substring(0, 5) : '';
+        const bStart = b.start_time ? b.start_time.substring(0, 5) : '';
+        const bEnd = b.end_time ? b.end_time.substring(0, 5) : '';
+
+        if (isTimeOverlapping(aStart, aEnd, bStart, bEnd)) {
+          const aRoom = (a.room_name || '').trim().toLowerCase();
+          const bRoom = (b.room_name || '').trim().toLowerCase();
+          if (aRoom && bRoom && aRoom === bRoom) {
+            return `Trùng phòng học trong danh sách tạo mới: Phòng "${a.room_name}" bị trùng ca (${aStart} - ${aEnd}) ngày ${aDate}.`;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
 export const createSchedule = async (req, res) => {
   const { class_id, subject_id, subject_name, room_name, study_date, start_time, end_time, target_type, target_id } = req.body;
   if (!study_date || !start_time || !end_time) {
@@ -1277,8 +1371,10 @@ export const createSchedule = async (req, res) => {
       target_type: target_type || 'class',
       target_id: target_id || ''
     };
-    // Removed invalid class_id and subject_id columns
 
+    // Check conflict
+    const conflictErr = await checkScheduleConflicts([payload]);
+    if (conflictErr) return errorResponse(res, conflictErr);
 
     const { data, error } = await supabaseAdmin
       .from('schedules')
@@ -1309,6 +1405,10 @@ export const createScheduleBatch = async (req, res) => {
       return rest;
     });
 
+    // Check conflicts
+    const conflictErr = await checkScheduleConflicts(batch);
+    if (conflictErr) return errorResponse(res, conflictErr);
+
     const { error } = await supabaseAdmin.from('schedules').insert(batch);
     if (error) return errorResponse(res, 'Lỗi tạo lịch hàng loạt', error);
 
@@ -1324,10 +1424,22 @@ export const updateSchedule = async (req, res) => {
   const { room_name, study_date, start_time, end_time, subject_name, target_type, target_id } = req.body;
 
   try {
-    const updateObj = { room_name, study_date, start_time, end_time };
-    if (subject_name) updateObj.subject_name = subject_name;
-    if (target_type) updateObj.target_type = target_type;
-    if (target_id) updateObj.target_id = target_id;
+    const { data: existing } = await supabaseAdmin.from('schedules').select('*').eq('schedule_id', id).single();
+    if (!existing) return errorResponse(res, 'Không tìm thấy lịch học');
+
+    const updateObj = {
+      room_name: room_name !== undefined ? room_name : existing.room_name,
+      study_date: study_date !== undefined ? study_date : existing.study_date,
+      start_time: start_time !== undefined ? start_time : existing.start_time,
+      end_time: end_time !== undefined ? end_time : existing.end_time,
+      subject_name: subject_name !== undefined ? subject_name : existing.subject_name,
+      target_type: target_type !== undefined ? target_type : existing.target_type,
+      target_id: target_id !== undefined ? target_id : existing.target_id
+    };
+
+    // Check conflict
+    const conflictErr = await checkScheduleConflicts([{ schedule_id: id, ...updateObj }], id);
+    if (conflictErr) return errorResponse(res, conflictErr);
 
     const { data, error } = await supabaseAdmin
       .from('schedules')

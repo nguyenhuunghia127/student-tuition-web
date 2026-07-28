@@ -899,7 +899,7 @@ export default function AdminDashboard() {
       if (scheduleForm.target_id) {
         try { mixedTargets = JSON.parse(scheduleForm.target_id); } catch(e) {}
       }
-      if (mixedTargets.classes.length === 0 && mixedTargets.phones.length === 0 && mixedTargets.names.length === 0) {
+      if (scheduleForm.target_type !== 'global' && mixedTargets.classes.length === 0 && mixedTargets.phones.length === 0 && mixedTargets.names.length === 0) {
         throw new Error('Vui lòng chọn ít nhất một đối tượng (Lớp/Học sinh)!');
       }
       const isEdit = !!scheduleForm.schedule_id;
@@ -941,6 +941,7 @@ export default function AdminDashboard() {
         });
         const resJson = await response.json();
         if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi tạo lịch hàng loạt');
+        alert(`Đã lưu thành công ${schedules.length} buổi học!`);
       } else {
         if (scheduleForm.start_time >= scheduleForm.end_time) {
           throw new Error('Giờ bắt đầu phải nhỏ hơn giờ kết thúc!');
@@ -954,6 +955,7 @@ export default function AdminDashboard() {
         });
         const resJson = await response.json();
         if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi');
+        alert(isEdit ? 'Cập nhật lịch học thành công!' : 'Tạo lịch học thành công!');
       }
       
       setShowScheduleModal(false)
@@ -970,9 +972,11 @@ export default function AdminDashboard() {
   const handleCopyWeek = async (weekScheds) => {
     try {
       const newSchedules = weekScheds.map(sch => {
-        const currentStudyDate = new Date(sch.study_date);
-        currentStudyDate.setDate(currentStudyDate.getDate() + 7);
-        const nextWeekDateStr = currentStudyDate.toISOString().split('T')[0];
+        const cleanDateStr = String(sch.study_date).split('T')[0];
+        const [y, m, d] = cleanDateStr.split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        dateObj.setDate(dateObj.getDate() + 7);
+        const nextWeekDateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
         return {
           subject_name: sch.subject_name,
           target_type: sch.target_type,
@@ -1051,14 +1055,12 @@ export default function AdminDashboard() {
     }
   };
 
-
-
   const handleDeleteSchedule = async (id) => {
-    if (!window.confirm('Xóa lịch học?')) return
     try {
       const res = await fetch(`${API_URL}/api/admin/schedules/${id}`, { method: 'DELETE' })
       const resJson = await res.json()
       if (!res.ok) throw new Error(resJson.message || 'Lỗi xoá lịch học')
+      alert('Đã xóa lịch học thành công!')
       await fetchSchedules()
     } catch (err) {
       alert(err.message)
