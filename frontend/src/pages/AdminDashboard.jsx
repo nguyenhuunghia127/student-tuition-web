@@ -1448,7 +1448,7 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               
-              {/* Thống kê Sĩ số theo Lớp (Modern Card with Exact Numbers & Progress Bars) */}
+              {/* Thống kê Sĩ số theo Lớp (Adaptive 2-Column Grid Layout for 10+ Classes) */}
               <motion.div 
                 whileHover={{ scale: 1.01 }} 
                 className="lg:col-span-1 glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between shadow-xl"
@@ -1456,13 +1456,13 @@ export default function AdminDashboard() {
                 <div className="absolute top-0 right-0 w-36 h-36 rounded-full bg-purple-500/10 blur-3xl pointer-events-none"></div>
 
                 {/* Header */}
-                <div className="flex items-center justify-between mb-5 z-10">
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2.5">
+                <div className="flex items-center justify-between mb-4 z-10">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>
                     SĨ SỐ HỌC SINH THEO LỚP
                   </h3>
-                  <span className="px-2.5 py-1 text-xs font-black bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40 rounded-full">
-                    Tổng: {students.length} HS
+                  <span className="px-2.5 py-1 text-xs font-black bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40 rounded-full flex-shrink-0">
+                    {students.length} HS
                   </span>
                 </div>
 
@@ -1494,10 +1494,12 @@ export default function AdminDashboard() {
                     { bar: 'from-pink-500 to-rose-500', badge: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300 border-pink-200 dark:border-pink-800/50' }
                   ];
 
+                  const isMultiCol = sortedClasses.length >= 4;
+
                   return (
                     <div className="flex-1 flex flex-col justify-between space-y-4">
-                      {/* Class Stat List */}
-                      <div className="space-y-3.5 flex-1 overflow-y-auto max-h-[280px] pr-1 scrollbar-thin">
+                      {/* Class Stat Grid (2 columns if 4+ classes, scrollable) */}
+                      <div className={`flex-1 overflow-y-auto max-h-[320px] pr-1.5 scrollbar-thin ${isMultiCol ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5' : 'space-y-3'}`}>
                         {sortedClasses.map((className, idx) => {
                           const count = classCounts[className];
                           const percent = Math.round((count / total) * 100);
@@ -1506,31 +1508,28 @@ export default function AdminDashboard() {
                           return (
                             <div 
                               key={className} 
-                              className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-3 rounded-2xl hover:border-purple-300 dark:hover:border-purple-800/60 transition-all duration-200 group"
+                              className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-2.5 rounded-2xl hover:border-purple-300 dark:hover:border-purple-800/60 transition-all duration-200 group flex flex-col justify-between"
                             >
-                              {/* Header row: Class name, Count Pill & Percentage */}
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-sm text-slate-800 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                                    {className}
-                                  </span>
-                                </div>
+                              {/* Header row: Class name & Percentage */}
+                              <div className="flex items-center justify-between gap-1 mb-1.5">
+                                <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                  {className}
+                                </span>
+                                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 flex-shrink-0">
+                                  {percent}%
+                                </span>
+                              </div>
 
-                                <div className="flex items-center gap-2">
-                                  {/* Exact Number Badge */}
-                                  <span className={`px-2 py-0.5 text-xs font-black rounded-lg border flex items-center gap-1 ${style.badge}`}>
-                                    <Users className="w-3 h-3" />
-                                    {count} học sinh
-                                  </span>
-                                  {/* Percentage */}
-                                  <span className="text-xs font-black text-slate-500 dark:text-slate-400 min-w-[36px] text-right">
-                                    {percent}%
-                                  </span>
-                                </div>
+                              {/* Exact Number Pill */}
+                              <div className="flex items-center justify-between gap-1 mb-2">
+                                <span className={`px-2 py-0.5 text-[10px] font-black rounded-lg border flex items-center gap-1 ${style.badge}`}>
+                                  <Users className="w-3 h-3" />
+                                  {count} HS
+                                </span>
                               </div>
 
                               {/* Progress bar */}
-                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div 
                                   className={`h-full bg-gradient-to-r ${style.bar} rounded-full transition-all duration-1000 shadow-sm`} 
                                   style={{ width: `${percent}%` }}
@@ -1541,7 +1540,7 @@ export default function AdminDashboard() {
                         })}
                       </div>
 
-                      {/* Footer overview pill */}
+                      {/* Footer overview */}
                       <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <span>Tổng số lớp: <strong className="text-slate-900 dark:text-white font-black">{sortedClasses.length} lớp</strong></span>
                         <span>Trung bình: <strong className="text-slate-900 dark:text-white font-black">{(total / (sortedClasses.length || 1)).toFixed(1)} HS/lớp</strong></span>
