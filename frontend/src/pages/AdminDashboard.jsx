@@ -1448,18 +1448,19 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               
-              {/* Thống kê Sĩ số theo Lớp (Donut Chart - Redesigned based on mockup) */}
+              {/* Thống kê Sĩ số theo Lớp (Exact replica of mockup image) */}
               <motion.div 
                 whileHover={{ scale: 1.01 }} 
-                className="lg:col-span-1 bg-[#131927] dark:bg-[#111726] border border-slate-800 rounded-3xl p-6 relative overflow-hidden flex flex-col shadow-xl"
+                className="lg:col-span-1 bg-[#181e2e] dark:bg-[#151a29] border border-[#262d42] dark:border-[#222838] rounded-[28px] p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden"
               >
-                <div className="flex items-center justify-between mb-4 z-10">
-                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#a855f7] shadow-[0_0_10px_#a855f7]"></span>
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-3 h-3 rounded-full bg-[#b042ff] shadow-[0_0_12px_#b042ff]"></div>
+                  <h3 className="text-base font-extrabold text-white uppercase tracking-wider">
                     SĨ SỐ HỌC SINH THEO LỚP
                   </h3>
                 </div>
-                
+
                 {(() => {
                   const classCounts = {};
                   students.forEach(s => {
@@ -1467,58 +1468,76 @@ export default function AdminDashboard() {
                     if (!classCounts[cName]) classCounts[cName] = 0;
                     classCounts[cName]++;
                   });
-                  
+
                   const sortedClasses = Object.keys(classCounts).sort((a, b) => classCounts[b] - classCounts[a]);
                   const total = students.length;
 
-                  if (total === 0) return <div className="flex-1 flex items-center justify-center text-slate-500 text-xs py-12 font-semibold">Chưa có dữ liệu học sinh</div>;
+                  if (total === 0) {
+                    return (
+                      <div className="flex-1 flex flex-col items-center justify-center text-slate-500 py-12">
+                        <span className="text-sm font-semibold">Chưa có dữ liệu học sinh</span>
+                      </div>
+                    );
+                  }
 
-                  const colorPalette = ['#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
-                  const chartData = sortedClasses.map((className, idx) => ({
+                  const colorPalette = ['#9333ea', '#00c6d7', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
+                  const data = sortedClasses.map((className, idx) => ({
                     name: className,
                     value: classCounts[className],
-                    color: colorPalette[idx % colorPalette.length]
+                    color: colorPalette[idx % colorPalette.length],
+                    percent: Math.round((classCounts[className] / total) * 100)
                   }));
 
-                  return (
-                    <div className="flex-1 flex flex-col items-center justify-between gap-4 mt-2">
-                      <div className="relative w-48 h-48 flex items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={chartData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={60}
-                              outerRadius={82}
-                              paddingAngle={4}
-                              dataKey="value"
-                              stroke="none"
-                              cornerRadius={6}
-                            >
-                              {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
+                  // SVG Donut Calculations
+                  let cumulativePercent = 0;
+                  const strokeWidth = 32;
+                  const radius = 70;
+                  const circumference = 2 * Math.PI * radius;
 
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <div className="w-24 h-24 rounded-full bg-[#131927] border border-slate-800 flex flex-col items-center justify-center shadow-inner">
-                            <span className="text-3xl font-black text-white leading-none">{total}</span>
-                            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">HỌC SINH</span>
+                  return (
+                    <div className="flex-1 flex flex-col items-center justify-between space-y-6">
+                      {/* Center Donut Graphic */}
+                      <div className="relative w-56 h-56 flex items-center justify-center my-2">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+                          {data.map((item) => {
+                            const strokeDasharray = `${(item.value / total) * circumference} ${circumference}`;
+                            const strokeDashoffset = -cumulativePercent * circumference;
+                            cumulativePercent += item.value / total;
+
+                            return (
+                              <circle
+                                key={item.name}
+                                cx="100"
+                                cy="100"
+                                r={radius}
+                                fill="transparent"
+                                stroke={item.color}
+                                strokeWidth={strokeWidth}
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset={strokeDashoffset}
+                                strokeLinecap={data.length > 1 ? "round" : "butt"}
+                                className="transition-all duration-700 hover:opacity-90 cursor-pointer"
+                              />
+                            );
+                          })}
+                        </svg>
+
+                        {/* Inner Circle Cutout with Big Number */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-36 h-36 rounded-full bg-[#131724] border border-[#252c40] flex flex-col items-center justify-center shadow-2xl">
+                            <span className="text-4xl font-black text-white leading-none">{total}</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">HỌC SINH</span>
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="w-full grid grid-cols-2 gap-x-4 gap-y-3 mt-2 px-1">
-                        {chartData.map(d => (
-                          <div key={d.name} className="flex items-center justify-between bg-slate-900/40 p-2 rounded-xl border border-slate-800/60">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm" style={{ backgroundColor: d.color }}></div>
-                              <span className="text-xs font-bold text-slate-300 truncate">{d.name}</span>
-                            </div>
-                            <span className="text-xs font-black text-white ml-2">{(d.value / total * 100).toFixed(0)}%</span>
+
+                      {/* Bottom Legend */}
+                      <div className="w-full flex flex-wrap items-center justify-between gap-y-3 pt-2">
+                        {data.map(d => (
+                          <div key={d.name} className="flex items-center gap-2.5 min-w-[110px]">
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }}></div>
+                            <span className="text-sm font-semibold text-slate-300">{d.name}</span>
+                            <span className="text-sm font-black text-white ml-auto">{d.percent}%</span>
                           </div>
                         ))}
                       </div>
