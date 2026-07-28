@@ -192,18 +192,19 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
 
           return (
             <div key={i} className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-3 border-b border-slate-100 dark:border-slate-700 pb-2 flex justify-between items-center">
-                <span>Thứ {i === 6 ? 'CN' : i + 2} - {day.getDate()}/{day.getMonth() + 1}</span>
-                {rawDaySchedules.length > daySchedules.length && (
-                  <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded font-normal">
-                    (Đã ẩn {rawDaySchedules.length - daySchedules.length} ca lặp)
-                  </span>
-                )}
+              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
+                Thứ {i === 6 ? 'CN' : i + 2} - {day.getDate()}/{day.getMonth() + 1}
               </h4>
               <div className="space-y-3">
                 {daySchedules.sort((a,b) => a.start_time.localeCompare(b.start_time)).map(sch => {
                   const colors = getSubjectColor(sch.subject_name);
                   const isAttended = sch.attendances && sch.attendances.length > 0;
+                  const today = new Date(); today.setHours(0,0,0,0);
+                  const schDate = new Date(sch.study_date); schDate.setHours(0,0,0,0);
+                  const uniqueFutureSessions = deduplicateSchedules(
+                    schedules.filter(s => s.subject_name === sch.subject_name && s.study_date >= sch.study_date)
+                  );
+                  const remainingSessions = uniqueFutureSessions.filter(s => { const d = new Date(s.study_date); d.setHours(0,0,0,0); return d >= schDate; }).length;
                   return (
                   <div 
                     key={sch.schedule_id} 
@@ -212,9 +213,16 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
                   >
                     <div className="flex items-center justify-between">
                       <span className={`font-bold ${colors.text} text-sm`}>{sch.subject_name}</span>
-                      <span className={`text-xs font-semibold ${colors.text} bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded`}>
-                        {sch.start_time.substring(0, 5)} - {sch.end_time.substring(0, 5)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {remainingSessions > 0 && (
+                          <span className="text-[10px] font-bold bg-white/30 dark:bg-black/30 text-white px-1.5 py-0.5 rounded-full">
+                            Còn {remainingSessions} buổi
+                          </span>
+                        )}
+                        <span className={`text-xs font-semibold ${colors.text} bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded`}>
+                          {sch.start_time.substring(0, 5)} - {sch.end_time.substring(0, 5)}
+                        </span>
+                      </div>
                     </div>
                     <div className={`text-xs ${colors.textMuted}`}>
                       Phòng: {sch.room_name} | Đối tượng: {getFormattedTarget(sch)}
@@ -300,6 +308,12 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
                     const colors = getSubjectColor(sch.subject_name);
                     const isAttended = sch.attendances && sch.attendances.length > 0;
 
+                    const schDate = new Date(sch.study_date); schDate.setHours(0,0,0,0);
+                    const uniqueFutureDesktop = deduplicateSchedules(
+                      schedules.filter(s => s.subject_name === sch.subject_name && s.study_date >= sch.study_date)
+                    );
+                    const remainingDesktop = uniqueFutureDesktop.filter(s => { const d = new Date(s.study_date); d.setHours(0,0,0,0); return d >= schDate; }).length;
+
                     const pos = layoutMap.get(sch.schedule_id) || { colIndex: 0, totalCols: 1 };
                     const widthPercent = 100 / pos.totalCols;
                     const leftPercent = pos.colIndex * widthPercent;
@@ -321,9 +335,14 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
                           width: `calc(${widthPercent}% - 4px)`,
                           left: `calc(${leftPercent}% + 2px)`
                         }}
-                        title={`${sch.subject_name}\n${sch.start_time.substring(0, 5)} - ${sch.end_time.substring(0, 5)}\nPhòng: ${sch.room_name}`}
+                        title={`${sch.subject_name}\n${sch.start_time.substring(0, 5)} - ${sch.end_time.substring(0, 5)}\nPhòng: ${sch.room_name}${remainingDesktop > 0 ? `\nCòn ${remainingDesktop} buổi` : ''}`}
                       >
-                        <div className={`text-[11px] font-black ${colors.text} leading-tight mb-1 truncate pr-14`}>{sch.subject_name}</div>
+                        <div className={`text-[11px] font-black ${colors.text} leading-tight mb-1 truncate pr-14`}>
+                          {sch.subject_name}
+                          {remainingDesktop > 0 && (
+                            <span className="ml-1 text-[8px] font-bold bg-white/25 px-1 py-0.5 rounded-full align-middle">{remainingDesktop}</span>
+                          )}
+                        </div>
                         <div className={`text-[9px] font-semibold ${colors.textMuted} leading-tight`}>
                           {getFormattedTarget(sch)} | {sch.room_name} | {sch.start_time.substring(0, 5)}-{sch.end_time.substring(0, 5)}
                         </div>
