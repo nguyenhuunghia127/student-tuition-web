@@ -1052,20 +1052,32 @@ export default function AdminDashboard() {
   };
 
   const handleRemindClass = async (sch) => {
-    if (!sch.target_id || sch.target_type !== 'class') {
-      alert('Chức năng nhắc nhở chỉ dùng cho ca học theo Lớp.');
+    let classesToRemind = [];
+    if (sch.target_type === 'class' && sch.target_id) {
+      classesToRemind = String(sch.target_id).split(',').map(c => c.trim()).filter(Boolean);
+    } else if (sch.target_type === 'mixed') {
+      try {
+        const p = JSON.parse(sch.target_id);
+        classesToRemind = p.classes || [];
+      } catch (e) {}
+    }
+    
+    if (classesToRemind.length === 0) {
+      alert('Chức năng nhắc nhở chỉ dùng cho ca học có cấu hình Lớp học.');
       return;
     }
-    if (!window.confirm(`Gửi thông báo nhắc nhở đi học cho lớp ${sch.target_id}?`)) return;
+    
+    const targetIdStr = classesToRemind.join(', ');
+    if (!window.confirm(`Gửi thông báo nhắc nhở đi học cho lớp ${targetIdStr}?`)) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: 'Cảnh báo vào lớp',
-          message: `Ca học môn ${sch.subject_name} chuẩn bị diễn ra vào lúc ${sch.start_time.substring(0, 5)} tại ${sch.room_name}. Các em nhớ vào học đúng giờ nhé!`,
+          message: `Ca học môn ${sch.subject_name} chuẩn bị diễn ra vào lúc ${sch.start_time ? sch.start_time.substring(0, 5) : '00:00'} tại ${sch.room_name}. Các em nhớ vào học đúng giờ nhé!`,
           target_type: 'class',
-          target_id: sch.target_id
+          target_id: targetIdStr
         })
       });
       if (!response.ok) throw new Error('Không thể gửi thông báo');

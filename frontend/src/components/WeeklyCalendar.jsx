@@ -1,15 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 // ─── STATIC HELPERS ──────────────────────────────────────────────────────────
 
 const SUBJECT_COLORS = {
   'toán':     { bg: 'from-blue-500/25 to-cyan-500/25 dark:from-blue-500/35 dark:to-cyan-500/35',    border: 'border-blue-400/40',   text: 'text-blue-900 dark:text-blue-100',   muted: 'text-blue-700 dark:text-blue-300',   dot: 'bg-blue-500'   },
   'vật lý':   { bg: 'from-green-500/25 to-emerald-500/25 dark:from-green-500/35 dark:to-emerald-500/35', border: 'border-green-400/40',  text: 'text-green-900 dark:text-green-100', muted: 'text-green-700 dark:text-green-300', dot: 'bg-green-500'  },
-  'hóa học':  { bg: 'from-orange-500/25 to-amber-500/25 dark:from-orange-500/35 dark:to-amber-500/35',  border: 'border-orange-400/40', text: 'text-orange-900 dark:text-orange-100', muted: 'text-orange-700 dark:text-orange-300', dot: 'bg-orange-500' },
-  'tiếng anh':{ bg: 'from-teal-500/25 to-cyan-600/25 dark:from-teal-500/35 dark:to-cyan-600/35',   border: 'border-teal-400/40',   text: 'text-teal-900 dark:text-teal-100',   muted: 'text-teal-700 dark:text-teal-300',   dot: 'bg-teal-500'   },
-  'ngữ văn':  { bg: 'from-pink-500/25 to-rose-500/25 dark:from-pink-500/35 dark:to-rose-500/35',   border: 'border-pink-400/40',   text: 'text-pink-900 dark:text-pink-100',   muted: 'text-pink-700 dark:text-pink-300',   dot: 'bg-pink-500'   },
+  'hóa học':  { bg: 'from-orange-500/25 to-amber-500/25 dark:from-orange-500/35 dark:to-amber-500/35',  border: 'border-orange-400/40', text: 'text-orange-900 dark:text-orange-100', muted: 'text-orange-700 dark:text-orange-300', dot: 'bg-orange-500' }
 };
 const DEFAULT_COLOR  = { bg: 'from-indigo-500/25 to-purple-500/25 dark:from-indigo-500/35 dark:to-purple-500/35', border: 'border-indigo-400/40', text: 'text-indigo-900 dark:text-indigo-100', muted: 'text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-500' };
 const ATTENDED_COLOR = { bg: 'from-emerald-500/20 to-green-500/20 dark:from-emerald-500/30 dark:to-green-600/30',  border: 'border-emerald-400/50', text: 'text-emerald-900 dark:text-emerald-100', muted: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500', status: 'attended' };
@@ -118,7 +116,8 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
     const cs = new Set();
     schedules.forEach(s => {
       if (s.target_type === 'mixed') { try { (JSON.parse(s.target_id).classes || []).forEach(c => cs.add(c)); } catch {} }
-      else if (s.target_id) cs.add(s.target_id);
+      else if (s.target_type === 'class' && s.target_id) { String(s.target_id).split(',').forEach(c => { if(c.trim()) cs.add(c.trim()); }); }
+      else if (s.target_id) cs.add(String(s.target_id).trim());
     });
     return Array.from(cs).sort();
   }, [schedules]);
@@ -177,7 +176,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
         });
       });
 
-      doc.autoTable({
+      autoTable(doc, {
         head: [['Ngay', 'Mon hoc', 'Gio hoc', 'Phong', 'Doi tuong', 'Trang thai', 'Ghi chu']],
         body: rows.length > 0 ? rows : [['—', 'Khong co lich hoc trong tuan nay', '', '', '', '', '']],
         startY: 27,
@@ -214,10 +213,10 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const newStartHour = 7 + Math.floor(y / 40);
-    const sch = filtered.find(s => s.schedule_id === id);
+    const sch = filtered.find(s => String(s.schedule_id) === String(id));
     if (!sch) return;
-    const [sH, sM] = sch.start_time.split(':').map(Number);
-    const [eH, eM] = sch.end_time.split(':').map(Number);
+    const [sH, sM] = (sch.start_time || '00:00').split(':').map(Number);
+    const [eH, eM] = (sch.end_time || '00:00').split(':').map(Number);
     const dur = (eH * 60 + eM) - (sH * 60 + sM);
     const newSMin = newStartHour * 60 + sM;
     const newEMin = newSMin + dur;
