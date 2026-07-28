@@ -103,6 +103,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [expandedMonthDay, setExpandedMonthDay] = useState(null);
   const [copyConfirm, setCopyConfirm]       = useState(false);
+  const [dragEnabled, setDragEnabled]       = useState(false);
 
   // ── Week / Month navigation ──
   const monday   = useMemo(() => getMonday(currentDate), [currentDate]);
@@ -254,24 +255,63 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
   // ── Drag & Drop ──
   const handleDrop = (e, targetDay) => {
     e.preventDefault();
+    if (!dragEnabled) return;
+
     const id = e.dataTransfer.getData('schedule_id');
     if (!id) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const newStartHour = 7 + Math.floor(y / 40);
+
+    if (newStartHour < 7 || newStartHour >= 21) return;
+
     const sch = filtered.find(s => String(s.schedule_id) === String(id));
     if (!sch) return;
+
     const [sH, sM] = (sch.start_time || '00:00').split(':').map(Number);
     const [eH, eM] = (sch.end_time || '00:00').split(':').map(Number);
     const dur = (eH * 60 + eM) - (sH * 60 + sM);
     const newSMin = newStartHour * 60 + sM;
     const newEMin = newSMin + dur;
     const pad = n => String(Math.floor(n)).padStart(2, '0');
+
+    const newDateStr = toDateStr(targetDay);
+    const newStartStr = `${pad(newStartHour)}:${pad(sM)}`;
+    const newEndStr = `${pad(newEMin / 60)}:${pad(newEMin % 60)}`;
+
+    const oldDateStr = sch.study_date ? sch.study_date.split('T')[0] : '';
+    const oldStartStr = sch.start_time ? sch.start_time.substring(0, 5) : '';
+    const oldEndStr = sch.end_time ? sch.end_time.substring(0, 5) : '';
+
+    // Ignore if position unchanged
+    if (newDateStr === oldDateStr && newStartStr === oldStartStr) return;
+
+    // Safety 1: Attended schedule protection
+    const isAttended = sch.attendances && sch.attendances.length > 0;
+    if (isAttended) {
+      const confirmAttended = window.confirm(
+        `⚠️ CẢNH BÁO DI CHUYỂN CA HỌC ĐÃ ĐIỂM DANH:\n\nCa học môn "${sch.subject_name}" ĐÃ CÓ DỮ LIỆU ĐIỂM DANH!\n\nBạn có chắc chắn muốn thay đổi lịch học này không?`
+      );
+      if (!confirmAttended) return;
+    }
+
+    // Safety 2: Confirmation prompt with details
+    const confirmMove = window.confirm(
+      `XÁC NHẬN DI CHUYỂN LỊCH HỌC:\n` +
+      `-----------------------------------\n` +
+      `Môn học: ${sch.subject_name}\n` +
+      `Từ:  Ngày ${oldDateStr} (${oldStartStr} - ${oldEndStr})\n` +
+      `Sang: Ngày ${newDateStr} (${newStartStr} - ${newEndStr})\n\n` +
+      `Bạn có đồng ý thay đổi không?`
+    );
+
+    if (!confirmMove) return;
+
     onUpdateSchedule && onUpdateSchedule({
       ...sch,
-      study_date: toDateStr(targetDay),
-      start_time: `${pad(newStartHour)}:${pad(sM)}`,
-      end_time: `${pad(newEMin / 60)}:${pad(newEMin % 60)}`
+      study_date: newDateStr,
+      start_time: newStartStr,
+      end_time: newEndStr
     });
   };
 
@@ -321,6 +361,22 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
             </button>
           ))}
         </div>
+
+        {/* Drag Lock Safety Toggle */}
+        {viewMode === 'week' && (
+          <button
+            type="button"
+            onClick={() => setDragEnabled(prev => !prev)}
+            className={`px-2.5 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1 cursor-pointer ${
+              dragEnabled 
+                ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/20' 
+                : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
+            }`}
+            title={dragEnabled ? "Đang mở kéo thả (Bấm để khóa)" : "Kéo thả đang khóa (Bấm để mở kéo thả lịch)"}
+          >
+            <span>{dragEnabled ? '🔓 Đang bật kéo thả' : '🔒 Khóa kéo thả'}</span>
+          </button>
+        )}
 
         {/* Copy week */}
         {onCopyWeek && viewMode === 'week' && (
@@ -599,7 +655,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
 
                     return (
                       <div key={sch.schedule_id}
-                        draggable
+                        draggable={dragEnabled}
                         onDragStart={e => { e.dataTransfer.setData('schedule_id', sch.schedule_id); e.currentTarget.style.opacity = '0.4'; }}
                         onDragEnd={e => e.currentTarget.style.opacity = '1'}
                         onClick={() => onEditSchedule && onEditSchedule(sch)}
