@@ -1706,6 +1706,57 @@ export default function AdminDashboard() {
                               ? { from: 'from-amber-400', to: 'to-orange-500', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', label: 'Lớp học' }
                               : { from: 'from-indigo-400', to: 'to-purple-500', bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', label: 'Toàn trường' }
                         
+                        // Clean title
+                        let displayTitle = notif.title || '';
+                        if (displayTitle.includes('Hoạt động hệ thống (UPDATE)')) {
+                          displayTitle = 'Cập nhật dữ liệu hệ thống';
+                        } else if (displayTitle.includes('Hoạt động hệ thống (CREATE)')) {
+                          displayTitle = 'Khởi tạo dữ liệu hệ thống';
+                        } else if (displayTitle.includes('Hoạt động hệ thống (DELETE)')) {
+                          displayTitle = 'Xóa dữ liệu hệ thống';
+                        }
+
+                        // Clean message (strip UUIDs)
+                        let displayMessage = notif.message || notif.description || '';
+                        if (displayMessage) {
+                          displayMessage = String(displayMessage)
+                            .replace(/\s*ID:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/gi, '')
+                            .replace(/\s*ID:\s*[0-9a-fA-F-]{10,}/gi, '')
+                            .replace(/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/gi, '')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        }
+
+                        // Format target_id cleanly (parse JSON string or clean prefixes)
+                        let targetText = null;
+                        const rawTarget = notif.target_id;
+                        if (rawTarget && rawTarget !== '' && rawTarget !== 'global') {
+                          if (typeof rawTarget === 'string' && (rawTarget.startsWith('{') || rawTarget.startsWith('['))) {
+                            try {
+                              const parsed = JSON.parse(rawTarget);
+                              const parts = [];
+                              if (parsed.classes && parsed.classes.length > 0) {
+                                parts.push(`Lớp ${parsed.classes.join(', ')}`);
+                              }
+                              if (parsed.phones && parsed.phones.length > 0) {
+                                parts.push(`SĐT: ${parsed.phones.join(', ')}`);
+                              }
+                              if (parsed.names && parsed.names.length > 0) {
+                                parts.push(`Học sinh: ${parsed.names.join(', ')}`);
+                              }
+                              if (parts.length > 0) targetText = parts.join(' • ');
+                            } catch (e) {
+                              targetText = rawTarget;
+                            }
+                          } else if (typeof rawTarget === 'string' && rawTarget.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) {
+                            targetText = null;
+                          } else {
+                            targetText = String(rawTarget)
+                              .replace(/^class:/i, 'Lớp ')
+                              .replace(/^student:/i, 'Học sinh ');
+                          }
+                        }
+
                         return (
                           <motion.div 
                             initial={{ opacity: 0, x: -30 }}
@@ -1727,7 +1778,7 @@ export default function AdminDashboard() {
                               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-2.5 relative z-10">
                                 <div className="flex flex-wrap items-center gap-2.5">
                                   <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
-                                    {notif.title}
+                                    {displayTitle}
                                   </h4>
                                   <span className={`text-[9px] font-black uppercase tracking-[0.1em] px-2 py-1 rounded-md ${theme.bg} ${theme.text} border border-current/10`}>
                                     {theme.label}
@@ -1739,13 +1790,13 @@ export default function AdminDashboard() {
                               </div>
                               
                               <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed relative z-10">
-                                {notif.message}
+                                {displayMessage}
                               </p>
                               
-                              {notif.target_id && notif.target_id !== '' && (
+                              {targetText && (
                                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50 text-[11px] flex items-center gap-1.5 text-slate-500">
                                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
-                                  <span>Gửi đến: <strong className="text-slate-700 dark:text-slate-300 ml-0.5">{notif.target_id}</strong></span>
+                                  <span>Gửi đến: <strong className="text-slate-700 dark:text-slate-300 ml-0.5">{targetText}</strong></span>
                                 </div>
                               )}
                             </div>

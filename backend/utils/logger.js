@@ -10,10 +10,20 @@ import { supabaseAdmin } from '../supabase.js';
  */
 export const logActivity = async (actor_role, actor_id, action_type, entity, description) => {
   try {
+    // Strip raw UUIDs and ID strings from log descriptions for human readability
+    const cleanDesc = description
+      ? String(description)
+          .replace(/\s*ID:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/gi, '')
+          .replace(/\s*ID:\s*[0-9a-fA-F-]{10,}/gi, '')
+          .replace(/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : description;
+
     const payload = {
       actor_role,
       action_type,
-      description
+      description: cleanDesc
     };
     if (actor_id) {
       payload.actor_id = actor_id;
