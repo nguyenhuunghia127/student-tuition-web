@@ -316,8 +316,8 @@ export default function ParentDashboard() {
                       Chưa có lịch sử thanh toán nào được ghi nhận.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <div className="overflow-x-auto w-full"><table className="min-w-max w-full text-left text-sm">
+                    <div className="overflow-x-auto w-full">
+                      <table className="min-w-max w-full text-left text-sm">
                         <thead>
                           <tr className="border-b border-slate-250 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-xs font-bold uppercase">
                             <th className="px-4 whitespace-nowrap pb-3">Ngày thanh toán</th>
@@ -343,7 +343,7 @@ export default function ParentDashboard() {
                             </tr>
                           ))}
                         </tbody>
-                      </table></div>
+                      </table>
                     </div>
                   )}
                 </div>

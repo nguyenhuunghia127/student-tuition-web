@@ -1231,7 +1231,7 @@ export default function AdminDashboard() {
         initial={false}
         animate={{ x: isSidebarOpen ? 0 : (window.innerWidth < 768 ? '100%' : 0) }}
         transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-        className={`fixed inset-y-0 right-0 z-50 w-72 md:w-64 glass-panel m-0 md:m-4 md:rounded-3xl p-6 flex flex-col gap-6 h-full md:h-[calc(100vh-32px)] overflow-y-auto ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:relative md:right-auto md:translate-x-0 shrink-0 custom-scrollbar`}
+        className={`fixed inset-y-0 right-0 z-50 w-72 md:w-64 glass-panel m-0 md:m-4 md:rounded-3xl p-6 flex flex-col gap-6 h-full md:h-[calc(100vh-32px)] overflow-y-auto md:relative md:right-auto md:translate-x-0 shrink-0 custom-scrollbar`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -2013,7 +2013,7 @@ export default function AdminDashboard() {
                   <select
                     value={classGradeFilter}
                     onChange={(e) => setClassGradeFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
+                    className="w-full sm:w-auto px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                   >
                     <option value="All">Tất cả khối</option>
                     {Array.from(new Set(mergedClasses.map(c => c.grade_level).filter(Boolean))).sort().map(g => (
@@ -2024,7 +2024,7 @@ export default function AdminDashboard() {
                   <select
                     value={classYearFilter}
                     onChange={(e) => setClassYearFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
+                    className="w-full sm:w-auto px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                   >
                     <option value="All">Tất cả năm học</option>
                     {Array.from(new Set(mergedClasses.map(c => c.academic_year || '2024-2025'))).sort().map(y => (
