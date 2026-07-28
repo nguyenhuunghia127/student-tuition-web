@@ -967,6 +967,37 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleCopyWeek = async (weekScheds) => {
+    try {
+      const newSchedules = weekScheds.map(sch => {
+        const currentStudyDate = new Date(sch.study_date);
+        currentStudyDate.setDate(currentStudyDate.getDate() + 7);
+        const nextWeekDateStr = currentStudyDate.toISOString().split('T')[0];
+        return {
+          subject_name: sch.subject_name,
+          target_type: sch.target_type,
+          target_id: sch.target_id,
+          study_date: nextWeekDateStr,
+          start_time: sch.start_time,
+          end_time: sch.end_time,
+          room_name: sch.room_name
+        };
+      });
+
+      const response = await fetch(`${API_URL}/api/admin/schedules/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schedules: newSchedules })
+      });
+      const resJson = await response.json();
+      if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi sao chép lịch');
+      alert(`Đã sao chép thành công ${newSchedules.length} ca học sang tuần sau!`);
+      await fetchSchedules();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const handleUpdateScheduleFromDrop = async (updatedSch) => {
     try {
       const response = await fetch(`${API_URL}/api/admin/schedules/${updatedSch.schedule_id}`, {
@@ -3413,7 +3444,8 @@ export default function AdminDashboard() {
                   target_id: mixedTargetId
                 })
                 setShowScheduleModal(true)
-              }} 
+              }}
+              onCopyWeek={handleCopyWeek}
             />
           </div>
         )}
