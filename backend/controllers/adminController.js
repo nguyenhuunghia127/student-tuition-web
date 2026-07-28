@@ -1402,11 +1402,12 @@ export const getScheduleAttendance = async (req, res) => {
       student_id: s.student_id,
       full_name: s.full_name,
       phone_number: s.phone_number,
-      is_present: attMap.get(s.student_id)?.is_present || false,
+      class_name: s.class_name,
+      status: attMap.get(s.student_id)?.status || 'present',
       note: attMap.get(s.student_id)?.note || ''
     }));
 
-    return successResponse(res, { schedule, students: result }, 'Tải dữ liệu điểm danh thành công');
+    return successResponse(res, result, 'Tải dữ liệu điểm danh thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
   }
@@ -1426,7 +1427,7 @@ export const saveScheduleAttendance = async (req, res) => {
     const payloads = attendances.map(item => ({
       schedule_id: id,
       student_id: item.student_id,
-      is_present: item.is_present,
+      status: item.status,
       note: item.note
     }));
 

@@ -91,7 +91,7 @@ function getOverlappingLayout(dayScheds) {
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 
-export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdateSchedule, onAttendance, onRemindClass, onCopyWeek }) {
+export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdateSchedule, onAttendance, onCopyWeek }) {
   const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 07–21
 
   // ── State ──
@@ -461,10 +461,6 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
                         📝 {note ? 'Có ghi chú' : 'Ghi chú'}
                       </button>
                       <div className="flex gap-1.5">
-                        <button onClick={() => onRemindClass && onRemindClass(sch)}
-                          className="text-xs font-bold bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-white px-2.5 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1">
-                          🔔 Nhắc
-                        </button>
                         <button onClick={() => onAttendance && onAttendance(sch)}
                           className={`text-xs font-bold ${isAttended ? 'bg-slate-500 hover:bg-slate-400' : 'bg-green-500 hover:bg-green-400 active:bg-green-600'} text-white px-2.5 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1`}>
                           {isAttended ? '✅ Đã ĐD' : '✔️ Điểm danh'}
@@ -612,9 +608,6 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
                           <button onClick={e => { e.stopPropagation(); setExpandedNoteId(showNote ? null : sch.schedule_id); }}
                             className="bg-amber-500 hover:bg-amber-400 text-white rounded-md w-5 h-5 flex items-center justify-center text-[10px] shadow-md transition-all hover:scale-110"
                             title="Ghi chú">📝</button>
-                          <button onClick={e => { e.stopPropagation(); onRemindClass && onRemindClass(sch); }}
-                            className="bg-yellow-500 hover:bg-yellow-400 text-white rounded-md w-5 h-5 flex items-center justify-center text-[10px] shadow-md transition-all hover:scale-110"
-                            title="Nhắc lớp">🔔</button>
                           <button onClick={e => { e.stopPropagation(); onAttendance && onAttendance(sch); }}
                             className={`${isAttended ? 'bg-slate-500 hover:bg-slate-400' : 'bg-green-500 hover:bg-green-400'} text-white rounded-md w-5 h-5 flex items-center justify-center text-[10px] shadow-md transition-all hover:scale-110`}
                             title={isAttended ? 'Sửa điểm danh' : 'Điểm danh'}>{isAttended ? '✅' : '✔'}</button>
