@@ -3908,20 +3908,41 @@ export default function AdminDashboard() {
                   {notifications.filter(n => n.target_type === 'admin' || n.target_type === 'system').length === 0 ? (
                     <div className="text-center py-12 text-slate-500 font-medium">Chưa có thông báo nào.</div>
                   ) : (
-                    notifications.filter(n => n.target_type === 'admin' || n.target_type === 'system').map(notif => (
-                      <div key={notif.notification_id} className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all flex gap-4 shadow-sm hover:shadow-md">
-                        <div className="p-3 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 h-fit">
-                          <Bell className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                            <h4 className="font-bold text-slate-900 dark:text-white text-base">{notif.title}</h4>
-                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full whitespace-nowrap border border-slate-200 dark:border-slate-700/50">{new Date(notif.created_at).toLocaleString('vi-VN')}</span>
+                    notifications.filter(n => n.target_type === 'admin' || n.target_type === 'system').map(notif => {
+                      let displayTitle = notif.title || '';
+                      if (displayTitle.includes('Hoạt động hệ thống (UPDATE)')) {
+                        displayTitle = 'Cập nhật dữ liệu hệ thống';
+                      } else if (displayTitle.includes('Hoạt động hệ thống (CREATE)')) {
+                        displayTitle = 'Khởi tạo dữ liệu hệ thống';
+                      } else if (displayTitle.includes('Hoạt động hệ thống (DELETE)')) {
+                        displayTitle = 'Xóa dữ liệu hệ thống';
+                      }
+
+                      let displayMessage = notif.message || notif.description || '';
+                      if (displayMessage) {
+                        displayMessage = String(displayMessage)
+                          .replace(/\s*ID:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/gi, '')
+                          .replace(/\s*ID:\s*[0-9a-fA-F-]{10,}/gi, '')
+                          .replace(/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/gi, '')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+                      }
+
+                      return (
+                        <div key={notif.notification_id} className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all flex gap-4 shadow-sm hover:shadow-md">
+                          <div className="p-3 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 h-fit">
+                            <Bell className="w-6 h-6" />
                           </div>
-                          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{notif.message}</p>
+                          <div className="flex-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                              <h4 className="font-bold text-slate-900 dark:text-white text-base">{displayTitle}</h4>
+                              <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full whitespace-nowrap border border-slate-200 dark:border-slate-700/50">{new Date(notif.created_at).toLocaleString('vi-VN')}</span>
+                            </div>
+                            <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{displayMessage}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
