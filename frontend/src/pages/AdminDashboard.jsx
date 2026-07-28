@@ -3426,18 +3426,18 @@ export default function AdminDashboard() {
                 if (sch.target_type === 'mixed') {
                   mixedTargetId = sch.target_id;
                 } else if (sch.target_type === 'class') {
-                  mixedTargetId = JSON.stringify({ classes: sch.target_id ? sch.target_id.split(',').filter(Boolean) : [], phones: [], names: [] });
+                  mixedTargetId = JSON.stringify({ classes: sch.target_id ? String(sch.target_id).split(',').filter(Boolean) : [], phones: [], names: [] });
                 } else if (sch.target_type === 'student_phone') {
-                  mixedTargetId = JSON.stringify({ classes: [], phones: sch.target_id ? sch.target_id.split(',').filter(Boolean) : [], names: [] });
+                  mixedTargetId = JSON.stringify({ classes: [], phones: sch.target_id ? String(sch.target_id).split(',').filter(Boolean) : [], names: [] });
                 } else if (sch.target_type === 'student_name') {
-                  mixedTargetId = JSON.stringify({ classes: [], phones: [], names: sch.target_id ? sch.target_id.split(',').filter(Boolean) : [] });
+                  mixedTargetId = JSON.stringify({ classes: [], phones: [], names: sch.target_id ? String(sch.target_id).split(',').filter(Boolean) : [] });
                 }
                 
                 setScheduleForm({
                   schedule_id: sch.schedule_id,
                   subject_name: sch.subject_name,
-                  start_time: sch.start_time.substring(0, 5),
-                  end_time: sch.end_time.substring(0, 5),
+                  start_time: sch.start_time ? sch.start_time.substring(0, 5) : '08:00',
+                  end_time: sch.end_time ? sch.end_time.substring(0, 5) : '11:30',
                   room_name: sch.room_name,
                   study_date: sch.study_date ? sch.study_date.split('T')[0] : new Date().toISOString().split('T')[0],
                   target_type: 'mixed',

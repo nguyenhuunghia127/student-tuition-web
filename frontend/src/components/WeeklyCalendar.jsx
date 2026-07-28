@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 // ─── STATIC HELPERS ──────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ function getFormattedTarget(sch) {
 function dedup(list) {
   const seen = new Set();
   return list.filter(sch => {
-    const k = `${sch.study_date}_${sch.subject_name}_${sch.start_time}_${sch.end_time}_${sch.room_name}_${getFormattedTarget(sch)}`;
+    const k = `${sch.study_date}_${sch.subject_name}_${sch.start_time}_${sch.end_time}_${sch.room_name}`;
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
@@ -129,14 +129,14 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
   }, [schedules, classFilter]);
 
   // ── Progress & remaining helpers ──
-  const getProgress = useCallback((subjectName) => {
-    const all = dedup(filtered.filter(s => s.subject_name === subjectName));
+  const getProgress = useCallback((sch) => {
+    const all = dedup(filtered.filter(s => s.subject_name === sch.subject_name && s.target_id === sch.target_id));
     return { total: all.length, attended: all.filter(s => s.attendances && s.attendances.length > 0).length };
   }, [filtered]);
 
   const getRemaining = useCallback((sch) => {
     const schDate = new Date(sch.study_date); schDate.setHours(0, 0, 0, 0);
-    return dedup(filtered.filter(s => s.subject_name === sch.subject_name && s.study_date >= sch.study_date))
+    return dedup(filtered.filter(s => s.subject_name === sch.subject_name && s.target_id === sch.target_id && s.study_date >= sch.study_date))
       .filter(s => { const d = new Date(s.study_date); d.setHours(0, 0, 0, 0); return d >= schDate; }).length;
   }, [filtered]);
 
@@ -177,7 +177,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
         });
       });
 
-      autoTable(doc, {
+      doc.autoTable({
         head: [['Ngay', 'Mon hoc', 'Gio hoc', 'Phong', 'Doi tuong', 'Trang thai', 'Ghi chu']],
         body: rows.length > 0 ? rows : [['—', 'Khong co lich hoc trong tuan nay', '', '', '', '', '']],
         startY: 27,
@@ -410,7 +410,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
                 const colors = getStatusColor(sch);
                 const isAttended = sch.attendances && sch.attendances.length > 0;
                 const remaining = getRemaining(sch);
-                const progress = getProgress(sch.subject_name);
+                const progress = getProgress(sch);
                 const note = notes[sch.schedule_id] || '';
                 const showNote = expandedNoteId === sch.schedule_id;
 
@@ -548,7 +548,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
                     const colors = getStatusColor(sch);
                     const isAttended = sch.attendances && sch.attendances.length > 0;
                     const remaining = getRemaining(sch);
-                    const progress  = getProgress(sch.subject_name);
+                    const progress  = getProgress(sch);
                     const note = notes[sch.schedule_id];
                     const showNote = expandedNoteId === sch.schedule_id;
 
