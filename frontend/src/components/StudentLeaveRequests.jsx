@@ -19,8 +19,7 @@ export default function StudentLeaveRequests({ data, onLeaveSubmit }) {
       const response = await fetch(`${API_URL}/api/student/leave-requests`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase_token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           student_id: data.student?.student_id,

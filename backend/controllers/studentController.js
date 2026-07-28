@@ -97,7 +97,7 @@ export const getParentDashboard = async (req, res) => {
     const studentIds = students.map(s => s.student_id);
 
     // Fetch data for all children
-    const [feesRes, paymentsRes, schedulesRes, gradesRes, notifsRes, attendancesRes, assignmentsRes, submissionsRes, appealsRes] = await Promise.all([
+    const [feesRes, paymentsRes, schedulesRes, gradesRes, notifsRes, attendancesRes, assignmentsRes, submissionsRes, appealsRes, leavesRes] = await Promise.all([
       supabaseAdmin.from('tuition_fees').select('*').in('student_id', studentIds).order('due_date', { ascending: true }).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('payment_history').select('*').in('student_id', studentIds).order('paid_at', { ascending: false }).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('schedules').select('*').order('study_date', { ascending: true }).then(r => r).catch(() => ({ data: [] })),
@@ -109,7 +109,8 @@ export const getParentDashboard = async (req, res) => {
       supabaseAdmin.from('attendances').select('*, schedules(title, study_date, class_name, subject_name)').in('student_id', studentIds).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('assignments').select('*').order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] })),
       supabaseAdmin.from('assignment_submissions').select('*').in('student_id', studentIds).then(r => r).catch(() => ({ data: [] })),
-      supabaseAdmin.from('grade_appeals').select('*').in('student_id', studentIds).order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] }))
+      supabaseAdmin.from('grade_appeals').select('*').in('student_id', studentIds).order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] })),
+      supabaseAdmin.from('leave_requests').select('*').in('student_id', studentIds).order('created_at', { ascending: false }).then(r => r).catch(() => ({ data: [] }))
     ]);
 
     // Filter schedules for all children
@@ -155,7 +156,8 @@ export const getParentDashboard = async (req, res) => {
       submissions: submissionsRes.data || [],
       gradeAppeals: appealsRes.data || [],
       notifications: parentNotifs,
-      attendances: attendancesRes.data || []
+      attendances: attendancesRes.data || [],
+      leaveRequests: leavesRes.data || []
     }, 'Tải thông tin dashboard phụ huynh thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống tải dashboard', error, 500);
@@ -242,7 +244,8 @@ export const getDashboard = async (req, res) => {
       notifications: studentNotifs,
       gradeAppeals: appealsRes.data || [],
       documents: docsRes.data || [],
-      attendances: attendancesRes.data || []
+      attendances: attendancesRes.data || [],
+      leaveRequests: leavesRes.data || []
     }, 'Tải thông tin dashboard học sinh thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống tải dashboard', error, 500);

@@ -12,23 +12,21 @@ import {
   submitLeaveRequest
 } from '../controllers/studentController.js';
 
-import { requireStudent, requireParent } from '../middlewares/authMiddleware.js';
-
 const router = express.Router();
 
 // Routes cho học sinh
-router.get('/profile', requireStudent, getProfile);
-router.get('/dashboard', requireStudent, getDashboard);
-router.post('/assignments/submit', requireStudent, submitAssignment);
-router.post('/tuition/pay', requireStudent, payTuition);
-router.post('/grade-appeals', requireStudent, submitGradeAppeal);
+router.get('/profile', getProfile);
+router.get('/dashboard', getDashboard);
+router.post('/assignments/submit', submitAssignment);
+router.post('/tuition/pay', payTuition);
+router.post('/grade-appeals', submitGradeAppeal);
 
 // Leave Requests (Học sinh)
-router.get('/leave-requests', requireStudent, getLeaveRequests);
-router.post('/leave-requests', requireStudent, submitLeaveRequest);
+router.get('/leave-requests', getLeaveRequests);
+router.post('/leave-requests', submitLeaveRequest);
 
 // Routes cho phụ huynh
-router.get('/parent/profile', requireParent, getParentProfile);
-router.get('/parent/dashboard', requireParent, getParentDashboard);
+router.get('/parent/profile', getParentProfile);
+router.get('/parent/dashboard', getParentDashboard);
 
 export default router;

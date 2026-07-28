@@ -32,12 +32,15 @@ export default function StudentLogin() {
     setError('')
     setLoading(true)
     try {
-      let response = await fetch(`${API_URL}/api/student/profile?phone=${encodeURIComponent(phone.trim())}`)
+      // Chuẩn hóa số điện thoại: xóa khoảng trắng và đổi +84 thành 0 (thường gặp trên điện thoại)
+      let cleanPhone = phone.trim().replace(/\s+/g, '').replace(/^\+84/, '0');
+      
+      let response = await fetch(`${API_URL}/api/student/profile?phone=${encodeURIComponent(cleanPhone)}`)
       let resData = await response.json()
       
       if (!response.ok || !resData.success) {
         // Try parent login
-        response = await fetch(`${API_URL}/api/student/parent/profile?phone=${encodeURIComponent(phone.trim())}`)
+        response = await fetch(`${API_URL}/api/student/parent/profile?phone=${encodeURIComponent(cleanPhone)}`)
         resData = await response.json()
         
         if (!response.ok || !resData.success) {
@@ -60,7 +63,7 @@ export default function StudentLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 relative overflow-hidden transition-colors duration-500">
       {/* Animated Background decorations */}
       <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-400/10 dark:bg-cyan-500/8 blur-[70px] animate-blob"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-blue-400/10 dark:bg-blue-600/8 blur-[70px] animate-blob" style={{ animationDelay: '2s' }}></div>
