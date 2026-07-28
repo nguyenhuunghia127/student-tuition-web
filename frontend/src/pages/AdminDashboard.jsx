@@ -1930,21 +1930,34 @@ export default function AdminDashboard() {
           
           const mergedClasses = allClassNames.map(name => {
             const dbClass = classes.find(c => c.class_name === name);
-            if (dbClass) return dbClass;
-            return { class_id: `temp_${name}`, class_name: name, grade_level: '', academic_year: '' };
+            const gradeMatch = name.match(/^(\d+)/);
+            const guessedGrade = gradeMatch ? `Khối ${gradeMatch[1]}` : '';
+
+            if (dbClass) {
+              return {
+                ...dbClass,
+                grade_level: dbClass.grade_level || guessedGrade
+              };
+            }
+            return { 
+              class_id: `temp_${name}`, 
+              class_name: name, 
+              grade_level: guessedGrade, 
+              academic_year: '2024-2025' 
+            };
           });
 
           // Filtering
           const filteredClasses = mergedClasses.filter(c => {
             const matchName = c.class_name.toLowerCase().includes(classSearch.toLowerCase()) || 
                               (c.subject || '').toLowerCase().includes(classSearch.toLowerCase());
-            const matchGrade = classGradeFilter === 'All' || c.grade_level === classGradeFilter;
+            const matchGrade = classGradeFilter === 'All' || c.grade_level === classGradeFilter || c.grade_level.includes(classGradeFilter);
             const matchYear = classYearFilter === 'All' || (c.academic_year || '2024-2025') === classYearFilter;
             return matchName && matchGrade && matchYear;
           });
 
-          const totalAssignedStudents = students.filter(s => s.classes?.class_id || s.class_name).length;
-          const avgStudentsPerClass = mergedClasses.length > 0 ? (students.length / mergedClasses.length).toFixed(1) : 0;
+          const totalAssignedStudents = students.filter(s => s.classes?.class_id || s.class_name || (s.student_classes && s.student_classes.length > 0)).length;
+          const avgStudentsPerClass = mergedClasses.length > 0 ? (totalAssignedStudents / mergedClasses.length).toFixed(1) : 0;
 
           return (
             <div className="space-y-6 animate-fade-in pb-10">
