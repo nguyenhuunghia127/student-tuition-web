@@ -115,41 +115,13 @@ export const getParentDashboard = async (req, res) => {
     // Filter schedules for all children
     const allSchedules = schedulesRes.data || [];
     const parentSchedules = allSchedules.filter(sch => {
-      // If global, visible to all
-      if (sch.target_type === 'global' || !sch.target_id) return true;
-      
-      // If targeted to a specific student
-      if (studentIds.includes(sch.target_id)) return true;
-
-      // If targeted to a class that one of the students is in
-      for (const stu of students) {
-        if (sch.class_id && stu.classes?.class_id === sch.class_id) return true;
-        if (sch.class_name && stu.class_name === sch.class_name) return true;
-        if (sch.target_id && stu.classes?.class_id === sch.target_id) return true;
-      }
-      return false;
+      return students.some(stu => matchesStudentTarget(sch, stu));
     });
 
     // Filter notifications based on target
     const allNotifs = notifsRes.data || [];
     const parentNotifs = allNotifs.filter(notif => {
-      // Thông báo toàn trường
-      if (!notif.target_type || notif.target_type === 'global' || notif.target_id === '') return true;
-      // Thông báo theo lớp hoặc học sinh cụ thể
-      for (const stu of students) {
-        if (notif.target_type === 'student' && (
-          notif.target_id === `student:${stu.student_id}` ||
-          notif.student_id === stu.student_id
-        )) return true;
-        if (notif.target_type === 'class' && (
-          notif.target_id === `class:${stu.class_id}` ||
-          notif.target_id === stu.class_id ||
-          notif.target_id === stu.class_name
-        )) return true;
-        // mixed format (e.g. "class:10/3")
-        if (notif.target_type === 'mixed' && stu.class_name && notif.target_id?.includes(stu.class_name)) return true;
-      }
-      return false;
+      return students.some(stu => matchesStudentTarget(notif, stu));
     });
 
     let gradesData = gradesRes.data || [];
@@ -214,9 +186,6 @@ export const getDashboard = async (req, res) => {
 
     if (!student) return errorResponse(res, 'Không tìm thấy thông tin học sinh', null, 404);
 
-    const classId = student.class_id;
-    const className = student.classes?.class_name || student.class_name;
-
     // 2. Tải tất cả dữ liệu liên quan đồng thời, chống sập trang khi thiếu FK
     const [
       feesRes, paymentsRes, schedulesRes, gradesRes,
@@ -240,13 +209,7 @@ export const getDashboard = async (req, res) => {
 
     // Lọc lịch học thuộc về học sinh (theo class_id, class_name hoặc target_id)
     const allSchedules = schedulesRes.data || [];
-    const studentSchedules = allSchedules.filter(sch => {
-      if (sch.class_id && classId && sch.class_id === classId) return true;
-      if (sch.target_id && (sch.target_id === classId || sch.target_id === student_id)) return true;
-      if (sch.class_name && className && sch.class_name === className) return true;
-      if (sch.target_type === 'global' || !sch.target_id) return true;
-      return false;
-    });
+    const studentSchedules = allSchedules.filter(sch => matchesStudentTarget(sch, student));
 
     let gradesData = gradesRes.data || [];
     const enrolledSubjects = student.enrolled_subjects || [];
@@ -266,24 +229,7 @@ export const getDashboard = async (req, res) => {
     });
 
     const allNotifs = notifsRes.data || [];
-    const studentNotifs = allNotifs.filter(notif => {
-      // Thông báo toàn trường
-      if (!notif.target_type || notif.target_type === 'global' || notif.target_id === '') return true;
-      // Thông báo theo học sinh cụ thể
-      if (notif.target_type === 'student' && (
-        notif.target_id === `student:${student_id}` ||
-        notif.student_id === student_id
-      )) return true;
-      // Thông báo theo lớp
-      if (notif.target_type === 'class' && (
-        notif.target_id === `class:${student.class_id}` ||
-        notif.target_id === student.class_id ||
-        notif.target_id === student.class_name
-      )) return true;
-      // mixed format (e.g. "class:10/3")
-      if (notif.target_type === 'mixed' && student.class_name && notif.target_id?.includes(student.class_name)) return true;
-      return false;
-    });
+    const studentNotifs = allNotifs.filter(notif => matchesStudentTarget(notif, student));
 
     return successResponse(res, {
       student,
