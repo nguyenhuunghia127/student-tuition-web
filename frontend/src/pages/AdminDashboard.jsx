@@ -10,6 +10,7 @@ import {
 import { API_URL } from '../config.js'
 import { supabase } from '../supabase.js'
 import { generateInvoice } from '../utils/pdfGenerator';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import AdminDocuments from '../components/AdminDocuments.jsx'
@@ -1447,117 +1448,83 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               
-              {/* Thống kê Sĩ số theo Lớp (Donut Chart) */}
-              <motion.div whileHover={{ scale: 1.01 }} className="lg:col-span-1 glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col">
-                <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-purple-500/10 blur-2xl pointer-events-none"></div>
-                <div className="relative z-10 h-full flex flex-col">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>
-                      Sĩ số Học sinh theo Lớp
-                    </h3>
-                  </div>
+              {/* Thống kê Sĩ số theo Lớp (Donut Chart - Redesigned based on mockup) */}
+              <motion.div 
+                whileHover={{ scale: 1.01 }} 
+                className="lg:col-span-1 bg-[#131927] dark:bg-[#111726] border border-slate-800 rounded-3xl p-6 relative overflow-hidden flex flex-col shadow-xl"
+              >
+                <div className="flex items-center justify-between mb-4 z-10">
+                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#a855f7] shadow-[0_0_10px_#a855f7]"></span>
+                    SĨ SỐ HỌC SINH THEO LỚP
+                  </h3>
+                </div>
+                
+                {(() => {
+                  const classCounts = {};
+                  students.forEach(s => {
+                    const cName = s.class_name || 'Khác';
+                    if (!classCounts[cName]) classCounts[cName] = 0;
+                    classCounts[cName]++;
+                  });
                   
-                  {(() => {
-                    const classCounts = {};
-                    students.forEach(s => {
-                      const cName = s.class_name || 'Khác';
-                      if (!classCounts[cName]) classCounts[cName] = 0;
-                      classCounts[cName]++;
-                    });
-                    
-                    const sortedClasses = Object.keys(classCounts).sort((a, b) => classCounts[b] - classCounts[a]);
-                    const total = students.length;
+                  const sortedClasses = Object.keys(classCounts).sort((a, b) => classCounts[b] - classCounts[a]);
+                  const total = students.length;
 
-                    if (total === 0) return <div className="flex-1 flex items-center justify-center text-slate-400 text-xs">Chưa có dữ liệu</div>;
+                  if (total === 0) return <div className="flex-1 flex items-center justify-center text-slate-500 text-xs py-12 font-semibold">Chưa có dữ liệu học sinh</div>;
 
-                    const colorPalette = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#64748b'];
-                    const data = sortedClasses.map((className, idx) => ({
-                      label: className,
-                      value: classCounts[className],
-                      color: colorPalette[idx % colorPalette.length]
-                    }));
+                  const colorPalette = ['#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
+                  const chartData = sortedClasses.map((className, idx) => ({
+                    name: className,
+                    value: classCounts[className],
+                    color: colorPalette[idx % colorPalette.length]
+                  }));
 
-                    // Calculate SVG paths for Donut
-                    let cumulativePercent = 0;
-                    const getCoordinatesForPercent = (percent) => {
-                      const x = Math.cos(2 * Math.PI * percent);
-                      const y = Math.sin(2 * Math.PI * percent);
-                      return [x, y];
-                    };
+                  return (
+                    <div className="flex-1 flex flex-col items-center justify-between gap-4 mt-2">
+                      <div className="relative w-48 h-48 flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={chartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={82}
+                              paddingAngle={4}
+                              dataKey="value"
+                              stroke="none"
+                              cornerRadius={6}
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
 
-                    return (
-                      <div className="flex-1 flex flex-col items-center justify-center gap-6">
-                        <div className="relative w-40 h-40 group">
-                          <svg viewBox="-1 -1 2 2" className="w-full h-full transform -rotate-90 filter drop-shadow-md">
-                            {data.map((slice, idx) => {
-                              const percent = slice.value / total;
-                              const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
-                              cumulativePercent += percent;
-                              const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
-                              const largeArcFlag = percent > 0.5 ? 1 : 0;
-                              const pathData = percent === 1 
-                                ? `M 1 0 A 1 1 0 1 1 1 -0.001` 
-                                : `M ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`;
-                              
-                              const midPercent = cumulativePercent - (percent / 2);
-                              const [midX, midY] = getCoordinatesForPercent(midPercent);
-
-                              return (
-                                <motion.g 
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ delay: 0.1 * idx, type: "spring" }}
-                                  key={slice.label} 
-                                  className="transition-all duration-500 hover:scale-105 origin-center cursor-pointer"
-                                >
-                                  <path
-                                    d={pathData}
-                                    fill="none"
-                                    stroke={slice.color}
-                                    strokeWidth="0.4"
-                                    strokeLinecap="round"
-                                  />
-                                  {percent > 0.05 && (
-                                    <text
-                                      x={midX}
-                                      y={midY}
-                                      fill="currentColor"
-                                      className="text-slate-700 dark:text-white"
-                                      fontSize="0.15"
-                                      fontWeight="bold"
-                                      textAnchor="middle"
-                                      alignmentBaseline="middle"
-                                      transform={`rotate(90 ${midX} ${midY})`}
-                                    >
-                                      {slice.value}
-                                    </text>
-                                  )}
-                                </motion.g>
-                              );
-                            })}
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-3xl font-black text-slate-900 dark:text-white">{total}</span>
-                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Học sinh</span>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <div className="w-24 h-24 rounded-full bg-[#131927] border border-slate-800 flex flex-col items-center justify-center shadow-inner">
+                            <span className="text-3xl font-black text-white leading-none">{total}</span>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">HỌC SINH</span>
                           </div>
                         </div>
-                        
-                        <div className="w-full grid grid-cols-2 gap-3 mt-2">
-                          {data.map(d => (
-                            <div key={d.label} className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: d.color }}></div>
-                              <div className="flex-1 flex justify-between items-center text-xs">
-                                <span className="text-slate-600 dark:text-slate-400 font-medium truncate pr-2">{d.label}</span>
-                                <span className="font-bold text-slate-900 dark:text-white">{(d.value / total * 100).toFixed(0)}%</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
                       </div>
-                    )
-                  })()}
-                </div>
+                      
+                      <div className="w-full grid grid-cols-2 gap-x-4 gap-y-3 mt-2 px-1">
+                        {chartData.map(d => (
+                          <div key={d.name} className="flex items-center justify-between bg-slate-900/40 p-2 rounded-xl border border-slate-800/60">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm" style={{ backgroundColor: d.color }}></div>
+                              <span className="text-xs font-bold text-slate-300 truncate">{d.name}</span>
+                            </div>
+                            <span className="text-xs font-black text-white ml-2">{(d.value / total * 100).toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.div>
 
               {/* Tình trạng bài tập (Modern Bar Chart) */}
