@@ -1090,10 +1090,12 @@ export default function AdminDashboard() {
   const handleDeleteSchedule = async (id) => {
     if (!window.confirm('Xóa lịch học?')) return
     try {
-      await fetch(`${API_URL}/api/admin/schedules/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_URL}/api/admin/schedules/${id}`, { method: 'DELETE' })
+      const resJson = await res.json()
+      if (!res.ok) throw new Error(resJson.message || 'Lỗi xoá lịch học')
       await fetchSchedules()
     } catch (err) {
-      console.error(err)
+      alert(err.message)
     }
   }
 

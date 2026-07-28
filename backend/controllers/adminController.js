@@ -1277,8 +1277,8 @@ export const createSchedule = async (req, res) => {
       target_type: target_type || 'class',
       target_id: target_id || ''
     };
-    if (class_id) payload.class_id = class_id;
-    if (subject_id) payload.subject_id = subject_id;
+    // Removed invalid class_id and subject_id columns
+
 
     const { data, error } = await supabaseAdmin
       .from('schedules')
@@ -1304,11 +1304,10 @@ export const createScheduleBatch = async (req, res) => {
   }
 
   try {
-    const batch = schedules.map(s => ({
-      ...s,
-      class_id: s.class_id || class_id || null,
-      subject_id: s.subject_id || subject_id || null
-    }));
+    const batch = schedules.map(s => {
+      const { class_id, subject_id, ...rest } = s;
+      return rest;
+    });
 
     const { error } = await supabaseAdmin.from('schedules').insert(batch);
     if (error) return errorResponse(res, 'Lỗi tạo lịch hàng loạt', error);
@@ -1322,11 +1321,13 @@ export const createScheduleBatch = async (req, res) => {
 
 export const updateSchedule = async (req, res) => {
   const { id } = req.params;
-  const { room_name, study_date, start_time, end_time, subject_name } = req.body;
+  const { room_name, study_date, start_time, end_time, subject_name, target_type, target_id } = req.body;
 
   try {
     const updateObj = { room_name, study_date, start_time, end_time };
     if (subject_name) updateObj.subject_name = subject_name;
+    if (target_type) updateObj.target_type = target_type;
+    if (target_id) updateObj.target_id = target_id;
 
     const { data, error } = await supabaseAdmin
       .from('schedules')
@@ -1347,6 +1348,9 @@ export const updateSchedule = async (req, res) => {
 export const deleteSchedule = async (req, res) => {
   const { id } = req.params;
   try {
+    // Delete linked attendances first to avoid foreign key constraints
+    await supabaseAdmin.from('attendances').delete().eq('schedule_id', id);
+
     const { error } = await supabaseAdmin.from('schedules').delete().eq('schedule_id', id);
     if (error) return errorResponse(res, 'Lỗi xóa buổi học', error);
     await logActivity('admin', req.user?.id, 'DELETE', 'schedules', `Xóa buổi học ID: ${id} (bởi ${req.user?.email || 'Admin'})`);
