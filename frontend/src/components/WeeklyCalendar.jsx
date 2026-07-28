@@ -105,6 +105,68 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
     return isoString.split('T')[0]; // fallback
   };
 
+  // Helper to deduplicate exact duplicate schedules for Mobile view
+  const deduplicateSchedules = (list) => {
+    const seen = new Set();
+    return list.filter(sch => {
+      const key = `${sch.study_date}_${sch.subject_name}_${sch.start_time}_${sch.end_time}_${sch.room_name}_${getFormattedTarget(sch)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  // Helper to calculate column positioning for overlapping events on Desktop
+  const getOverlappingLayout = (daySchedules) => {
+    const sorted = [...daySchedules].sort((a, b) => (a.start_time || '00:00').localeCompare(b.start_time || '00:00'));
+    const layout = new Map();
+    const columns = [];
+
+    sorted.forEach(sch => {
+      const [sH, sM] = (sch.start_time || '00:00').split(':').map(Number);
+      const [eH, eM] = (sch.end_time || '00:00').split(':').map(Number);
+      const startMin = sH * 60 + sM;
+
+      let placed = false;
+      for (let c = 0; c < columns.length; c++) {
+        const lastInCol = columns[c][columns[c].length - 1];
+        const [lEH, lEM] = (lastInCol.end_time || '00:00').split(':').map(Number);
+        const lastEndMin = lEH * 60 + lEM;
+
+        if (startMin >= lastEndMin) {
+          columns[c].push(sch);
+          layout.set(sch.schedule_id, { colIndex: c });
+          placed = true;
+          break;
+        }
+      }
+
+      if (!placed) {
+        columns.push([sch]);
+        layout.set(sch.schedule_id, { colIndex: columns.length - 1 });
+      }
+    });
+
+    sorted.forEach(sch => {
+      const [sH, sM] = (sch.start_time || '00:00').split(':').map(Number);
+      const [eH, eM] = (sch.end_time || '00:00').split(':').map(Number);
+      const startMin = sH * 60 + sM;
+      const endMin = eH * 60 + eM;
+
+      const overlapping = sorted.filter(other => {
+        const [oSH, oSM] = (other.start_time || '00:00').split(':').map(Number);
+        const [oEH, oEM] = (other.end_time || '00:00').split(':').map(Number);
+        return startMin < (oEH * 60 + oEM) && endMin > (oSH * 60 + oSM);
+      });
+
+      const maxCol = Math.max(...overlapping.map(o => layout.get(o.schedule_id)?.colIndex || 0)) + 1;
+      const current = layout.get(sch.schedule_id);
+      if (current) current.totalCols = maxCol;
+    });
+
+    return layout;
+  };
+
   return (
     <div className="glass-panel overflow-hidden flex flex-col rounded-[2rem]">
       {/* Header Toolbar */}
@@ -123,14 +185,20 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
       <div className="md:hidden flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900">
         {weekDays.map((day, i) => {
           const dateStr = (new Date(day.getTime() - day.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-          const daySchedules = schedules.filter(s => s.study_date && s.study_date.startsWith(dateStr));
+          const rawDaySchedules = schedules.filter(s => s.study_date && s.study_date.startsWith(dateStr));
+          const daySchedules = deduplicateSchedules(rawDaySchedules);
           
           if (daySchedules.length === 0) return null;
 
           return (
             <div key={i} className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
-                Thứ {i === 6 ? 'CN' : i + 2} - {day.getDate()}/{day.getMonth() + 1}
+              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-3 border-b border-slate-100 dark:border-slate-700 pb-2 flex justify-between items-center">
+                <span>Thứ {i === 6 ? 'CN' : i + 2} - {day.getDate()}/{day.getMonth() + 1}</span>
+                {rawDaySchedules.length > daySchedules.length && (
+                  <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded font-normal">
+                    (Đã ẩn {rawDaySchedules.length - daySchedules.length} ca lặp)
+                  </span>
+                )}
               </h4>
               <div className="space-y-3">
                 {daySchedules.sort((a,b) => a.start_time.localeCompare(b.start_time)).map(sch => {
@@ -198,7 +266,8 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
           {weekDays.map((day, i) => {
             const dateStr = (new Date(day.getTime() - day.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             const daySchedules = schedules.filter(s => s.study_date && s.study_date.startsWith(dateStr));
-            
+            const layoutMap = getOverlappingLayout(daySchedules);
+
             return (
               <div key={i} className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 min-w-[120px]">
                 {/* Day Header */}
@@ -230,6 +299,10 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
                     const colors = getSubjectColor(sch.subject_name);
                     const isAttended = sch.attendances && sch.attendances.length > 0;
 
+                    const pos = layoutMap.get(sch.schedule_id) || { colIndex: 0, totalCols: 1 };
+                    const widthPercent = 100 / pos.totalCols;
+                    const leftPercent = pos.colIndex * widthPercent;
+
                     return (
                       <div
                         key={sch.schedule_id}
@@ -240,8 +313,13 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
                         }}
                         onDragEnd={(e) => e.target.style.opacity = '1'}
                         onClick={() => onEditSchedule && onEditSchedule(sch)}
-                        className={`absolute left-1 right-1 rounded-xl bg-gradient-to-br ${colors.bg} border ${colors.border} p-2 shadow-md backdrop-blur-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all overflow-hidden group`}
-                        style={{ top: `${top}px`, height: `${height}px` }}
+                        className={`absolute rounded-xl bg-gradient-to-br ${colors.bg} border ${colors.border} p-2 shadow-md backdrop-blur-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all overflow-hidden group`}
+                        style={{ 
+                          top: `${top}px`, 
+                          height: `${height}px`,
+                          width: `calc(${widthPercent}% - 4px)`,
+                          left: `calc(${leftPercent}% + 2px)`
+                        }}
                         title={`${sch.subject_name}\n${sch.start_time.substring(0, 5)} - ${sch.end_time.substring(0, 5)}\nPhòng: ${sch.room_name}`}
                       >
                         <div className={`text-[11px] font-black ${colors.text} leading-tight mb-1 truncate pr-14`}>{sch.subject_name}</div>
