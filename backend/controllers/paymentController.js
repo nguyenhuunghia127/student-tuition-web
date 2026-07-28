@@ -144,7 +144,6 @@ export const confirmQRPayment = async (req, res) => {
         student_id,
         fee_id,
         amount: Number(amount),
-        payment_method: 'qr_transfer',
         status: 'pending',
         paid_at: new Date().toISOString()
       })
