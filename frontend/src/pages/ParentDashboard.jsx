@@ -11,6 +11,7 @@ import WeeklyCalendar from '../components/WeeklyCalendar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import { generateInvoice } from '../utils/pdfGenerator.js'
 import { supabase } from '../supabase.js'
+import ParentLeaveRequests from '../components/ParentLeaveRequests.jsx'
 
 export default function ParentDashboard() {
   const navigate = useNavigate()
@@ -42,7 +43,7 @@ export default function ParentDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fee_id: fee.fee_id,
-          parent_id: parent.parent_id,
+          student_id: fee.student_id,
           amount: fee.amount,
           title: fee.title
         })
@@ -64,7 +65,7 @@ export default function ParentDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          parent_id: parent.parent_id,
+          student_id: fee.student_id,
           fee_id: fee.fee_id,
           amount: fee.amount
         })
@@ -214,6 +215,7 @@ export default function ParentDashboard() {
             { id: 'tuition', label: 'Học Phí & Giao Dịch', icon: DollarSign },
             { id: 'schedule', label: 'Thời Khóa Biểu', icon: Calendar },
             { id: 'grades', label: 'Bảng Điểm', icon: Award },
+            { id: 'leaveRequests', label: 'Xin Nghỉ Phép', icon: MessageSquare },
             { id: 'notifications', label: 'Thông Báo Mới', icon: Bell }
           ].map(tab => {
             const Icon = tab.icon
@@ -565,6 +567,13 @@ export default function ParentDashboard() {
 
             {/* 2.4 TAB BÀI TẬP VỀ NHÀ */}
 
+            {/* 2.4.5 TAB XIN NGHỈ PHÉP */}
+            {activeTab === 'leaveRequests' && (
+              <ParentLeaveRequests 
+                data={data}
+                onLeaveSubmit={() => fetchDashboardData(parent)}
+              />
+            )}
 
             {/* 2.5 TAB THÔNG BÁO */}
             {activeTab === 'notifications' && (

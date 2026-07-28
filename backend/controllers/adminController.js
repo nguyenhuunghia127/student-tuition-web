@@ -1709,7 +1709,7 @@ export const downloadGradeTemplate = (req, res) => {
 // ==========================================
 export const getAllLeaveRequests = async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('leave_requests').select('*, students(full_name, class_name, classes(class_name))').order('created_at', { ascending: false }).limit(1000);
+    const { data, error } = await supabaseAdmin.from('leave_requests').select('*, students(full_name, class_name)').order('created_at', { ascending: false }).limit(1000);
     if (error) return errorResponse(res, 'Lỗi lấy danh sách nghỉ phép', error);
     return successResponse(res, data || [], 'Thành công');
   } catch (error) {
