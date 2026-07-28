@@ -1448,17 +1448,22 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               
-              {/* Thống kê Sĩ số theo Lớp (Exact replica of mockup image) */}
+              {/* Thống kê Sĩ số theo Lớp (Modern Card with Exact Numbers & Progress Bars) */}
               <motion.div 
                 whileHover={{ scale: 1.01 }} 
-                className="lg:col-span-1 bg-[#181e2e] dark:bg-[#151a29] border border-[#262d42] dark:border-[#222838] rounded-[28px] p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden"
+                className="lg:col-span-1 glass-card glow-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between shadow-xl"
               >
+                <div className="absolute top-0 right-0 w-36 h-36 rounded-full bg-purple-500/10 blur-3xl pointer-events-none"></div>
+
                 {/* Header */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-[#b042ff] shadow-[0_0_12px_#b042ff]"></div>
-                  <h3 className="text-base font-extrabold text-white uppercase tracking-wider">
+                <div className="flex items-center justify-between mb-5 z-10">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>
                     SĨ SỐ HỌC SINH THEO LỚP
                   </h3>
+                  <span className="px-2.5 py-1 text-xs font-black bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40 rounded-full">
+                    Tổng: {students.length} HS
+                  </span>
                 </div>
 
                 {(() => {
@@ -1474,72 +1479,72 @@ export default function AdminDashboard() {
 
                   if (total === 0) {
                     return (
-                      <div className="flex-1 flex flex-col items-center justify-center text-slate-500 py-12">
-                        <span className="text-sm font-semibold">Chưa có dữ liệu học sinh</span>
+                      <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 py-12">
+                        <Users className="w-10 h-10 mb-2 opacity-40" />
+                        <span className="text-xs font-semibold">Chưa có dữ liệu học sinh</span>
                       </div>
                     );
                   }
 
-                  const colorPalette = ['#9333ea', '#00c6d7', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
-                  const data = sortedClasses.map((className, idx) => ({
-                    name: className,
-                    value: classCounts[className],
-                    color: colorPalette[idx % colorPalette.length],
-                    percent: Math.round((classCounts[className] / total) * 100)
-                  }));
-
-                  // SVG Donut Calculations
-                  let cumulativePercent = 0;
-                  const strokeWidth = 32;
-                  const radius = 70;
-                  const circumference = 2 * Math.PI * radius;
+                  const gradients = [
+                    { bar: 'from-purple-500 to-indigo-500', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800/50' },
+                    { bar: 'from-cyan-500 to-blue-500', badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800/50' },
+                    { bar: 'from-emerald-500 to-teal-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50' },
+                    { bar: 'from-amber-500 to-orange-500', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/50' },
+                    { bar: 'from-pink-500 to-rose-500', badge: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300 border-pink-200 dark:border-pink-800/50' }
+                  ];
 
                   return (
-                    <div className="flex-1 flex flex-col items-center justify-between space-y-6">
-                      {/* Center Donut Graphic */}
-                      <div className="relative w-56 h-56 flex items-center justify-center my-2">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
-                          {data.map((item) => {
-                            const strokeDasharray = `${(item.value / total) * circumference} ${circumference}`;
-                            const strokeDashoffset = -cumulativePercent * circumference;
-                            cumulativePercent += item.value / total;
+                    <div className="flex-1 flex flex-col justify-between space-y-4">
+                      {/* Class Stat List */}
+                      <div className="space-y-3.5 flex-1 overflow-y-auto max-h-[280px] pr-1 scrollbar-thin">
+                        {sortedClasses.map((className, idx) => {
+                          const count = classCounts[className];
+                          const percent = Math.round((count / total) * 100);
+                          const style = gradients[idx % gradients.length];
 
-                            return (
-                              <circle
-                                key={item.name}
-                                cx="100"
-                                cy="100"
-                                r={radius}
-                                fill="transparent"
-                                stroke={item.color}
-                                strokeWidth={strokeWidth}
-                                strokeDasharray={strokeDasharray}
-                                strokeDashoffset={strokeDashoffset}
-                                strokeLinecap={data.length > 1 ? "round" : "butt"}
-                                className="transition-all duration-700 hover:opacity-90 cursor-pointer"
-                              />
-                            );
-                          })}
-                        </svg>
+                          return (
+                            <div 
+                              key={className} 
+                              className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-3 rounded-2xl hover:border-purple-300 dark:hover:border-purple-800/60 transition-all duration-200 group"
+                            >
+                              {/* Header row: Class name, Count Pill & Percentage */}
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-extrabold text-sm text-slate-800 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                    {className}
+                                  </span>
+                                </div>
 
-                        {/* Inner Circle Cutout with Big Number */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="w-36 h-36 rounded-full bg-[#131724] border border-[#252c40] flex flex-col items-center justify-center shadow-2xl">
-                            <span className="text-4xl font-black text-white leading-none">{total}</span>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">HỌC SINH</span>
-                          </div>
-                        </div>
+                                <div className="flex items-center gap-2">
+                                  {/* Exact Number Badge */}
+                                  <span className={`px-2 py-0.5 text-xs font-black rounded-lg border flex items-center gap-1 ${style.badge}`}>
+                                    <Users className="w-3 h-3" />
+                                    {count} học sinh
+                                  </span>
+                                  {/* Percentage */}
+                                  <span className="text-xs font-black text-slate-500 dark:text-slate-400 min-w-[36px] text-right">
+                                    {percent}%
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full bg-gradient-to-r ${style.bar} rounded-full transition-all duration-1000 shadow-sm`} 
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      {/* Bottom Legend */}
-                      <div className="w-full flex flex-wrap items-center justify-between gap-y-3 pt-2">
-                        {data.map(d => (
-                          <div key={d.name} className="flex items-center gap-2.5 min-w-[110px]">
-                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }}></div>
-                            <span className="text-sm font-semibold text-slate-300">{d.name}</span>
-                            <span className="text-sm font-black text-white ml-auto">{d.percent}%</span>
-                          </div>
-                        ))}
+                      {/* Footer overview pill */}
+                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span>Tổng số lớp: <strong className="text-slate-900 dark:text-white font-black">{sortedClasses.length} lớp</strong></span>
+                        <span>Trung bình: <strong className="text-slate-900 dark:text-white font-black">{(total / (sortedClasses.length || 1)).toFixed(1)} HS/lớp</strong></span>
                       </div>
                     </div>
                   );
