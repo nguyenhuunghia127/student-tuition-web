@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 // ─── STATIC HELPERS ──────────────────────────────────────────────────────────
 
@@ -147,49 +148,36 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
   };
 
   // ── PDF Export ──
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
-      const doc = new jsPDF({ orientation: 'landscape' });
-      doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-      doc.text('LICH HOC TUAN', 14, 15);
-      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-      const label = viewMode === 'week'
-        ? `Tuan: ${monday.toLocaleDateString('vi-VN')} - ${weekDays[6].toLocaleDateString('vi-VN')}`
-        : currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-      doc.text(label, 14, 22);
-
-      const rows = [];
-      weekDays.forEach((day, i) => {
-        const ds = toDateStr(day);
-        const dayScheds = dedup(filtered.filter(s => s.study_date && s.study_date.startsWith(ds)));
-        dayScheds.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')).forEach(sch => {
-          const col = getStatusColor(sch);
-          rows.push([
-            `Thu ${i === 6 ? 'CN' : i + 2} (${day.getDate()}/${day.getMonth() + 1})`,
-            sch.subject_name || '',
-            `${sch.start_time?.substring(0, 5)} - ${sch.end_time?.substring(0, 5)}`,
-            sch.room_name || '',
-            getFormattedTarget(sch),
-            col.status === 'attended' ? 'Da diem danh' : col.status === 'missed' ? 'Chua diem danh' : 'Sap toi',
-            notes[sch.schedule_id] || ''
-          ]);
-        });
+      const element = document.getElementById('calendar-export-area');
+      if (!element) return;
+      
+      // Temporarily remove rounded corners and shadow for better PDF rendering
+      const originalClass = element.className;
+      element.className = "bg-white dark:bg-slate-900";
+      
+      const canvas = await html2canvas(element, { 
+        scale: 2,
+        useCORS: true,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff'
       });
+      
+      element.className = originalClass;
 
-      autoTable(doc, {
-        head: [['Ngay', 'Mon hoc', 'Gio hoc', 'Phong', 'Doi tuong', 'Trang thai', 'Ghi chu']],
-        body: rows.length > 0 ? rows : [['—', 'Khong co lich hoc trong tuan nay', '', '', '', '', '']],
-        startY: 27,
-        styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [99, 102, 241], textColor: 255 },
-        alternateRowStyles: { fillColor: [245, 245, 255] },
-        columnStyles: { 6: { cellWidth: 40 } }
+      const imgData = canvas.toDataURL('image/png');
+      const doc = new jsPDF({
+        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
       });
-
-      doc.save(`lich-hoc-${monday.toISOString().split('T')[0]}.pdf`);
+      
+      doc.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      const filename = viewMode === 'week' ? `lich-hoc-tuan-${monday.toISOString().split('T')[0]}.pdf` : `lich-hoc-thang-${currentDate.toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
     } catch (err) {
       console.error('PDF export error:', err);
-      alert('Khong the xuat PDF. Vui long thu lai!');
+      alert('Không thể xuất PDF. Vui lòng thử lại!');
     }
   };
 
@@ -626,7 +614,7 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
 
   // ── RETURN ────────────────────────────────────────────────────────────────
   return (
-    <div className="glass-panel overflow-hidden flex flex-col rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div id="calendar-export-area" className="glass-panel overflow-hidden flex flex-col rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
       {Toolbar}
       {viewMode === 'month' ? (
         <MonthView />
