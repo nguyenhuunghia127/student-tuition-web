@@ -41,7 +41,7 @@ function getFormattedTarget(sch) {
 function dedup(list) {
   const seen = new Set();
   return list.filter(sch => {
-    const k = `${sch.study_date}_${sch.subject_name}_${sch.start_time}_${sch.end_time}_${sch.room_name}`;
+    const k = `${sch.study_date}_${sch.subject_name}_${sch.start_time}_${sch.end_time}_${sch.room_name}_${getFormattedTarget(sch)}`;
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
