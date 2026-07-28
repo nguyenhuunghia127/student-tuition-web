@@ -265,7 +265,8 @@ export default function WeeklyCalendar({ schedules, onEditSchedule, onUpdateSche
         <div className="flex flex-1">
           {weekDays.map((day, i) => {
             const dateStr = (new Date(day.getTime() - day.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            const daySchedules = schedules.filter(s => s.study_date && s.study_date.startsWith(dateStr));
+            const rawDaySchedules = schedules.filter(s => s.study_date && s.study_date.startsWith(dateStr));
+            const daySchedules = deduplicateSchedules(rawDaySchedules);
             const layoutMap = getOverlappingLayout(daySchedules);
 
             return (
