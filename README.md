@@ -27,7 +27,18 @@ Sản phẩm cung cấp **3 cổng thông tin độc lập** đem lại trải n
 ---
 
 
-## 📸 Hình Ảnh Giao Diện (Screenshots)
+
+## 📸 Hình Ảnh Giao Diện & 🎥 Video Demo
+
+<div align="center">
+  <h3>Video Giới Thiệu Tính Năng</h3>
+  <!-- HƯỚNG DẪN: Kéo thả file video mp4 của bạn vào đây khi edit trên GitHub để nó tự động upload và tạo thẻ video -->
+  <video src="https://github.com/user-attachments/assets/placeholder-video-link" controls="controls" muted="muted" style="max-height:640px; min-height: 200px">
+  </video>
+  <p><em>(Thay thế link video trên bằng video quay màn hình thực tế của bạn)</em></p>
+</div>
+
+<br/>
 
 <div align="center">
   <table>
@@ -38,11 +49,13 @@ Sản phẩm cung cấp **3 cổng thông tin độc lập** đem lại trải n
     </tr>
     <tr>
       <td><img src="./assets/admin-mobile-dashboard.png" width="250" alt="Admin Dashboard" /></td>
-      <td><img src="./assets/student-mobile-dashboard.png" width="250" alt="Student Dashboard" /></td>
+      <td><img src="https://placehold.co/250x541/1e1e2d/a3a3c2.png?text=Student+Dashboard" width="250" alt="Student Dashboard" /></td>
       <td><img src="./assets/parent-mobile-dashboard.png" width="250" alt="Parent Dashboard" /></td>
     </tr>
   </table>
+  <p><em>(Lưu ý: Bạn hãy chụp lại ảnh Student Portal và đè lên file assets/student-mobile-dashboard.png nhé)</em></p>
 </div>
+
 
 ---
 
