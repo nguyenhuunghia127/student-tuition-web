@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        var d = document.createElement('div');
+        d.style.cssText = 'color:red; background:white; padding:20px; font-size:12px; position:fixed; top:0; left:0; right:0; z-index:9999; word-break:break-all;';
+        d.innerText = 'LỖI HỆ THỐNG:\n' + msg + '\nDòng: ' + lineNo + '\nFile: ' + url + '\nChi tiết: ' + (error ? error.stack : '');
+        document.body.appendChild(d);
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        var d = document.createElement('div');
+        d.style.cssText = 'color:red; background:white; padding:20px; font-size:12px; position:fixed; top:0; left:0; right:0; z-index:9999; word-break:break-all;';
+        d.innerText = 'LỖI Promise:\n' + (event.reason ? event.reason.toString() : 'Unknown');
+        document.body.appendChild(d);
+      });
+    </script>
     <title>Hệ thống Quản lý Học tập & Học phí</title>
     <!-- Content Security Policy (CSP) để chống XSS -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* https://*;" />
