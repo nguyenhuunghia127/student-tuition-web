@@ -52,8 +52,9 @@ app.use('/api/auth', authLimiter);
 // Cấu hình CORS (Whitelist)
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.includes('student-tuition-web.vercel.app')) {
+    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.includes('.vercel.app')) {
       callback(null, true);
+
     } else {
       callback(new Error('Truy cập bị từ chối bởi cấu hình CORS'));
     }

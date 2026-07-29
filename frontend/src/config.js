@@ -13,9 +13,13 @@ window.fetch = async (input, init = {}) => {
   }
 
   if (url && url.includes(API_URL)) {
-    const adminSession = localStorage.getItem('admin_session');
-    const studentProfile = localStorage.getItem('student_profile');
-    const parentProfile = localStorage.getItem('parent_profile');
+    try {
+      const adminSession = localStorage.getItem('admin_session');
+      const studentProfile = localStorage.getItem('student_profile');
+      const parentProfile = localStorage.getItem('parent_profile');
+    } catch (e) {
+      console.warn('localStorage is not available for fetch interceptor', e);
+    }
     // Không cần gắn Authorization header vì đã dùng HttpOnly Cookie
     // Nhưng CẦN bật credentials để trình duyệt tự động gửi Cookie
     init.credentials = 'include';

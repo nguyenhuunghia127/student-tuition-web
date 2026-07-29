@@ -2,6 +2,21 @@ import { supabaseAdmin } from '../supabase.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 import { logActivity } from '../utils/logger.js';
 
+const matchesStudentTarget = (item, student) => {
+  if (!item || !student) return false;
+  if (item.target_type === 'global' || item.target_type === 'all') return true;
+  if (item.target_type === 'class' && student.classes) {
+    return item.target_id === student.classes.class_id || item.target_id === student.classes.class_name;
+  }
+  if (item.target_type === 'student') {
+    return item.target_id === student.student_id;
+  }
+  if (item.class_name && student.classes) {
+    return item.class_name === student.classes.class_name;
+  }
+  return true;
+};
+
 export const getProfile = async (req, res) => {
   const { phone } = req.query;
   if (!phone) return errorResponse(res, 'Thiếu số điện thoại tra cứu');

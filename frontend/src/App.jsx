@@ -9,17 +9,23 @@ import './index.css'
 
 // Khởi chạy mặc định cấu hình Theme trên root
 const applyInitialTheme = () => {
-  const saved = localStorage.getItem('theme')
-  if (saved === 'light') {
-    document.documentElement.classList.remove('dark')
-  } else {
-    document.documentElement.classList.add('dark')
+  try {
+    const saved = localStorage.getItem('theme')
+    if (saved === 'light') {
+      document.documentElement.classList.remove('dark')
+    } else {
+      document.documentElement.classList.add('dark')
+    }
+  } catch (e) {
+    console.warn('localStorage is not available', e)
+    document.documentElement.classList.add('dark') // Default to dark if failed
   }
 }
 applyInitialTheme()
 
 const AdminRoute = ({ children }) => {
-  const adminSession = localStorage.getItem('admin_session');
+  let adminSession = null;
+  try { adminSession = localStorage.getItem('admin_session'); } catch (e) {}
   if (!adminSession) {
     return <Navigate to="/admin/login" replace />;
   }
@@ -27,7 +33,8 @@ const AdminRoute = ({ children }) => {
 };
 
 const StudentRoute = ({ children }) => {
-  const studentProfile = localStorage.getItem('student_profile');
+  let studentProfile = null;
+  try { studentProfile = localStorage.getItem('student_profile'); } catch (e) {}
   if (!studentProfile) {
     return <Navigate to="/" replace />;
   }
@@ -35,7 +42,8 @@ const StudentRoute = ({ children }) => {
 };
 
 const ParentRoute = ({ children }) => {
-  const parentProfile = localStorage.getItem('parent_profile');
+  let parentProfile = null;
+  try { parentProfile = localStorage.getItem('parent_profile'); } catch (e) {}
   if (!parentProfile) {
     return <Navigate to="/" replace />;
   }

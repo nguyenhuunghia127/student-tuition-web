@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { Sun, Moon } from 'lucide-react'
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('theme') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  })
 
   useEffect(() => {
     if (theme === 'dark') {
