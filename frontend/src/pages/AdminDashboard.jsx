@@ -1332,7 +1332,7 @@ export default function AdminDashboard() {
         {/* Header removed as requested */}
 
         {activeSubTab === 'documents' && <AdminDocuments adminUser={adminUser} fetchStats={fetchStats} />}
-                        {activeSubTab === 'leaves' && <AdminLeaveRequests session={{access_token: localStorage.getItem('supabase_token')}} />}
+                        {activeSubTab === 'leaves' && <AdminLeaveRequests session={{access_token: adminUser ? JSON.parse(localStorage.getItem('admin_session'))?.token : null}} />}
         
         {/* 5.1 STATS (BENTO GRID DASHBOARD) */}
         {activeSubTab === 'stats' && (
