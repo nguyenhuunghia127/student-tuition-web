@@ -33,8 +33,11 @@ Sản phẩm cung cấp **3 cổng thông tin độc lập** đem lại trải n
 
 <div align="center">
   <h3>Video Trải Nghiệm Thực Tế Toàn Bộ Quy Trình</h3>
-  <video src="./assets/demo.webm" controls="controls" muted="muted" style="max-height:640px; min-height: 200px">
-  </video>
+  
+  <a href="https://github.com/nguyenhuunghia127/student-tuition-web/raw/main/assets/demo.webm">
+    <img src="https://img.shields.io/badge/%E2%96%B6%EF%B8%8F_Xem_Video_Demo_To%C3%A0n_B%E1%BB%99_Quy_Tr%C3%ACnh-blue?style=for-the-badge" alt="Watch Video" />
+  </a>
+  <p><em>(Nhấp vào nút trên để tải/xem video trải nghiệm thực tế)</em></p>
 </div>
 
 <br/>
