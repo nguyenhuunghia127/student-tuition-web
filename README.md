@@ -26,6 +26,26 @@ Sản phẩm cung cấp **3 cổng thông tin độc lập** đem lại trải n
 
 ---
 
+
+## 📸 Hình Ảnh Giao Diện (Screenshots)
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>Admin Portal</b></td>
+      <td align="center"><b>Student Portal</b></td>
+      <td align="center"><b>Parent Portal</b></td>
+    </tr>
+    <tr>
+      <td><img src="./assets/admin-mobile-dashboard.png" width="250" alt="Admin Dashboard" /></td>
+      <td><img src="./assets/student-mobile-dashboard.png" width="250" alt="Student Dashboard" /></td>
+      <td><img src="./assets/parent-mobile-dashboard.png" width="250" alt="Parent Dashboard" /></td>
+    </tr>
+  </table>
+</div>
+
+---
+
 ## 🚀 Tính Năng Chi Tiết Theo Từng Vai Trò (Core Features by Roles)
 
 ### 👑 1. Cổng Quản Trị Trung Tâm (Admin Portal)
