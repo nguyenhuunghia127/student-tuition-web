@@ -844,6 +844,44 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleApprovePayment = async (paymentId, feeId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn DUYỆT khoản thanh toán này?')) return
+    try {
+      const response = await fetch(`${API_URL}/api/admin/tuition/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_id: paymentId, fee_id: feeId })
+      })
+      const resJson = await response.json()
+      if (resJson.success) {
+        await fetchTuition()
+        await fetchPaymentHistory()
+        await fetchStats()
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleRejectPayment = async (paymentId, feeId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn TỪ CHỐI khoản thanh toán này?')) return
+    try {
+      const response = await fetch(`${API_URL}/api/admin/tuition/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_id: paymentId, fee_id: feeId })
+      })
+      const resJson = await response.json()
+      if (resJson.success) {
+        await fetchTuition()
+        await fetchPaymentHistory()
+        await fetchStats()
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   // --- ĐIỂM SỐ ---
   const handleSaveGrade = async (e) => {
     e.preventDefault()
@@ -2593,6 +2631,7 @@ export default function AdminDashboard() {
                 >
                   <option value="All">Trạng thái: Tất cả</option>
                   <option value="paid">Đã nộp</option>
+                  <option value="pending">Chờ duyệt</option>
                   <option value="unpaid">Chưa nộp</option>
                 </select>
 
@@ -2723,9 +2762,11 @@ export default function AdminDashboard() {
                           <div className="text-xs text-slate-550 dark:text-slate-400 font-semibold text-right lg:text-left">{new Date(fee.due_date).toLocaleDateString('vi-VN')}</div>
                           <div className="flex gap-2 items-center justify-end lg:justify-start">
                             <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                              fee.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450' : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                              fee.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450' : 
+                              fee.status === 'pending' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-450' :
+                              'bg-red-500/10 text-red-600 dark:text-red-400'
                             }`}>
-                              {fee.status === 'paid' ? 'Đã đóng' : 'Còn nợ'}
+                              {fee.status === 'paid' ? 'Đã đóng' : fee.status === 'pending' ? 'Chờ duyệt' : 'Còn nợ'}
                             </span>
                             {isAlmostExpired && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">Sắp hết hạn</span>}
                             {isExpired && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-600 dark:text-red-400">Đã quá hạn</span>}
@@ -2935,17 +2976,37 @@ export default function AdminDashboard() {
                                 {h.tuition_fees?.title || 'N/A'}
                               </td>
                               <td className="p-4">
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400 block mb-1">
+                                <span className={`font-bold block mb-1 ${h.status === 'pending' ? 'text-amber-600 dark:text-amber-400' : h.status === 'rejected' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                                   {Number(h.amount).toLocaleString('vi-VN')} đ
                                 </span>
-                                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Thành công</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                  h.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                  h.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                  'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                  {h.status === 'pending' ? 'Chờ duyệt' : h.status === 'rejected' ? 'Từ chối' : 'Thành công'}
+                                </span>
                               </td>
                               <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
                                 <div className="flex items-center justify-between">
                                   <span>{new Date(h.paid_at).toLocaleString('vi-VN')}</span>
-                                  <button onClick={() => generateInvoice(h, h.students)} className="ml-3 px-3 py-1.5 flex items-center gap-1.5 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors font-bold text-xs" title="Tải Biên Lai PDF">
-                                    <Download className="w-3 h-3" /> Tải PDF
-                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    {h.status === 'pending' && (
+                                      <>
+                                        <button onClick={() => handleApprovePayment(h.payment_id, h.fee_id)} className="px-3 py-1.5 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors font-bold text-xs" title="Duyệt">
+                                          Duyệt
+                                        </button>
+                                        <button onClick={() => handleRejectPayment(h.payment_id, h.fee_id)} className="px-3 py-1.5 flex items-center gap-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-bold text-xs" title="Từ chối">
+                                          Từ chối
+                                        </button>
+                                      </>
+                                    )}
+                                    {h.status === 'paid' && (
+                                      <button onClick={() => generateInvoice(h, h.students)} className="ml-3 px-3 py-1.5 flex items-center gap-1.5 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors font-bold text-xs" title="Tải Biên Lai PDF">
+                                        <Download className="w-3 h-3" /> Tải PDF
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                             </tr>

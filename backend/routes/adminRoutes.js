@@ -65,6 +65,8 @@ router.post('/tuition/assign-class', adminController.assignClassTuition);
 router.post('/tuition/assign-advanced', adminController.assignAdvancedTuition);
 router.post('/tuition/unpay-manual', adminController.unpayManual);
 router.post('/tuition/pay-manual', adminController.payManual);
+router.post('/tuition/approve', adminController.approveTuitionPayment);
+router.post('/tuition/reject', adminController.rejectTuitionPayment);
 
 // Schedules
 router.get('/schedules', adminController.getSchedules);

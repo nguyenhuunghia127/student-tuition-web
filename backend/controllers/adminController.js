@@ -1732,10 +1732,36 @@ export const updateLeaveStatus = async (req, res) => {
       target_id: `student:${data.student_id}`,
       is_global: false
     });
-    
+
     await logActivity('admin', req.user?.id, 'UPDATE', 'leave_requests', `Cập nhật trạng thái đơn nghỉ phép ID: ${id} thành ${status} (bởi ${req.user?.email || 'Admin'})`);
     return successResponse(res, data, 'Cập nhật thành công');
   } catch (error) {
     return errorResponse(res, 'Lỗi hệ thống', error, 500);
   }
+};
+
+export const approveTuitionPayment = async (req, res) => {
+  const { payment_id, fee_id } = req.body;
+  if (!payment_id || !fee_id) return errorResponse(res, 'Thiếu thông tin');
+  try {
+    const { error: feeErr } = await supabaseAdmin.from('tuition_fees').update({ status: 'paid' }).eq('fee_id', fee_id);
+    if (feeErr) return errorResponse(res, 'Lỗi cập nhật học phí', feeErr);
+    const { error: payErr } = await supabaseAdmin.from('payment_history').update({ status: 'paid' }).eq('payment_id', payment_id);
+    if (payErr) return errorResponse(res, 'Lỗi cập nhật lịch sử', payErr);
+    await autoNotify('Xác nhận học phí', 'Khoản học phí của bạn đã được Admin xác nhận thành công.', 'global', '');
+    return successResponse(res, null, 'Duyệt thanh toán thành công');
+  } catch (err) { return errorResponse(res, 'Lỗi hệ thống', err, 500); }
+};
+
+export const rejectTuitionPayment = async (req, res) => {
+  const { payment_id, fee_id } = req.body;
+  if (!payment_id || !fee_id) return errorResponse(res, 'Thiếu thông tin');
+  try {
+    const { error: feeErr } = await supabaseAdmin.from('tuition_fees').update({ status: 'unpaid' }).eq('fee_id', fee_id);
+    if (feeErr) return errorResponse(res, 'Lỗi cập nhật học phí', feeErr);
+    const { error: payErr } = await supabaseAdmin.from('payment_history').update({ status: 'rejected' }).eq('payment_id', payment_id);
+    if (payErr) return errorResponse(res, 'Lỗi cập nhật lịch sử', payErr);
+    await autoNotify('Từ chối học phí', 'Giao dịch thanh toán của bạn đã bị từ chối. Vui lòng kiểm tra lại.', 'global', '');
+    return successResponse(res, null, 'Từ chối thanh toán thành công');
+  } catch (err) { return errorResponse(res, 'Lỗi hệ thống', err, 500); }
 };
