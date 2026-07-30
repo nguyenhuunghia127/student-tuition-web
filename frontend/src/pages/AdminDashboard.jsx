@@ -8,6 +8,7 @@ import {
   Sun, Moon, Menu, X, FileText, Users, CheckSquare, Edit3, Trash2, ArrowLeft, Inbox, Phone, Download, Settings, Plus, ChevronRight, Save, ShieldCheck, Mail, ArrowRight, LayoutGrid, MessageSquare
 } from 'lucide-react'
 import { API_URL } from '../config.js'
+import Swal from 'sweetalert2'
 import { supabase } from '../supabase.js'
 import { generateInvoice } from '../utils/pdfGenerator';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
@@ -461,12 +462,20 @@ export default function AdminDashboard() {
       await fetchStudents()
       await fetchStats()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
   const handleDeleteStudent = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn xóa học sinh này?')) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc muốn xóa học sinh này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/students/${id}`, { method: 'DELETE' })
       if (response.ok) {
@@ -482,7 +491,7 @@ export default function AdminDashboard() {
   const handleSaveClass = async (e) => {
     e.preventDefault()
     if (classForm.tuition_fee < 0) {
-      alert('Học phí không thể là số âm');
+      Swal.fire('Thông báo', String('Học phí không thể là số âm'), 'info');
       return;
     }
 
@@ -530,27 +539,35 @@ export default function AdminDashboard() {
       await fetchStudents();
       await fetchStats();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
 
   const handleDeleteClass = async (classId, className) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa lớp ${className}? Tất cả gán lớp học sinh liên quan có thể bị ảnh hưởng.`)) return;
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn có chắc muốn xóa lớp ${className}? Tất cả gán lớp học sinh liên quan có thể bị ảnh hưởng.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const res = await fetch(`${API_URL}/api/admin/classes/${classId}`, {
         method: 'DELETE'
       });
       const data = await res.json();
       if (data.success) {
-        alert('Xóa lớp học thành công');
+        Swal.fire({ title: 'Thành công!', text: String('Xóa lớp học thành công'), icon: 'success', timer: 2000, showConfirmButton: false });
         await fetchClasses();
         await fetchStudents();
       } else {
-        alert(data.message || 'Không thể xóa lớp học (lớp đang chứa học sinh)');
+        Swal.fire('Thông báo', String(data.message || 'Không thể xóa lớp học (lớp đang chứa học sinh)'), 'info');
       }
     } catch (e) {
-      alert('Lỗi kết nối khi xóa lớp');
+      Swal.fire('Lỗi', String('Lỗi kết nối khi xóa lớp'), 'error');
     }
   };
 
@@ -564,17 +581,25 @@ export default function AdminDashboard() {
       });
       const resJson = await response.json();
       if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi gán học sinh');
-      alert(`Đã thêm ${studentIds.length} học sinh vào lớp!`);
+      Swal.fire('Thông báo', String(`Đã thêm ${studentIds.length} học sinh vào lớp!`), 'info');
       setSelectedStudentsToAssign([]);
       await fetchStudents();
       await fetchClasses();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
   const handleRemoveStudentFromClass = async (classId, studentId, studentName) => {
-    if (!window.confirm(`Xóa học sinh ${studentName} khỏi lớp này?`)) return;
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Xóa học sinh ${studentName} khỏi lớp này?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/classes/${classId}/students/${studentId}`, {
         method: 'DELETE'
@@ -584,7 +609,7 @@ export default function AdminDashboard() {
       await fetchStudents();
       await fetchClasses();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -606,7 +631,7 @@ export default function AdminDashboard() {
       a.remove();
       window.URL.revokeObjectURL(objUrl);
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -623,12 +648,20 @@ export default function AdminDashboard() {
       setShowGradeSettingsModal(false);
       await fetchGradeSettings();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
   const handleUpdateAppealStatus = async (appealId, status) => {
-    if (!window.confirm(`Xác nhận ${status === 'approved' ? 'duyệt' : 'từ chối'} đơn phúc khảo này?`)) return;
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Xác nhận ${status === 'approved' ? 'duyệt' : 'từ chối'} đơn phúc khảo này?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/grade-appeals/${appealId}/status`, {
         method: 'PUT',
@@ -639,7 +672,7 @@ export default function AdminDashboard() {
         await fetchGradeAppeals();
       }
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -659,7 +692,15 @@ export default function AdminDashboard() {
 
   const handleBulkDeleteStudents = async () => {
     if (selectedStudents.length === 0) return
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedStudents.length} học sinh đã chọn? Hành động này không thể hoàn tác!`)) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn có chắc chắn muốn xóa ${selectedStudents.length} học sinh đã chọn? Hành động này không thể hoàn tác!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/students/bulk-delete`, {
         method: 'POST',
@@ -672,11 +713,11 @@ export default function AdminDashboard() {
         await fetchStats()
       } else {
         const resJson = await response.json()
-        alert(resJson.message || 'Lỗi xóa hàng loạt')
+        Swal.fire('Lỗi', String(resJson.message || 'Lỗi xóa hàng loạt'), 'error')
       }
     } catch (err) {
       console.error(err)
-      alert('Lỗi hệ thống khi xóa hàng loạt')
+      Swal.fire('Lỗi', String('Lỗi hệ thống khi xóa hàng loạt'), 'error')
     }
   }
 
@@ -691,7 +732,15 @@ export default function AdminDashboard() {
 
   const handleBulkDeleteTuitions = async () => {
     if (selectedTuitions.length === 0) return
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedTuitions.length} khoản phí đã chọn? Hành động này không thể hoàn tác!`)) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn có chắc chắn muốn xóa ${selectedTuitions.length} khoản phí đã chọn? Hành động này không thể hoàn tác!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/tuition/bulk-delete`, {
         method: 'POST',
@@ -704,10 +753,10 @@ export default function AdminDashboard() {
         await fetchStats()
       } else {
         const resJson = await response.json()
-        alert(resJson.message || 'Lỗi xóa hàng loạt')
+        Swal.fire('Lỗi', String(resJson.message || 'Lỗi xóa hàng loạt'), 'error')
       }
     } catch (err) {
-      alert('Lỗi hệ thống khi xóa hàng loạt')
+      Swal.fire('Lỗi', String('Lỗi hệ thống khi xóa hàng loạt'), 'error')
     }
   }
 
@@ -726,14 +775,14 @@ export default function AdminDashboard() {
       })
       const resJson = await response.json()
       if (resJson.success) {
-        alert(resJson.message)
+        Swal.fire('Thông báo', String(resJson.message), 'info')
         await fetchStudents()
         await fetchStats()
       } else {
-        alert('Lỗi import: ' + resJson.message)
+        Swal.fire('Lỗi', String('Lỗi import: ' + resJson.message), 'error')
       }
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     } finally {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -753,7 +802,7 @@ export default function AdminDashboard() {
         })
         const resJson = await response.json()
         if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi chỉnh sửa học phí')
-        alert('Cập nhật khoản học phí thành công!')
+        Swal.fire({ title: 'Thành công!', text: String('Cập nhật khoản học phí thành công!'), icon: 'success', timer: 2000, showConfirmButton: false })
       } else {
         // Gán học phí đa môn & đa tháng nâng cao
         const response = await fetch(`${API_URL}/api/admin/tuition/assign-advanced`, {
@@ -763,7 +812,7 @@ export default function AdminDashboard() {
         })
         const resJson = await response.json()
         if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi gán học phí')
-        alert(resJson.message || 'Gán học phí thành công!')
+        Swal.fire({ title: 'Thành công!', text: String(resJson.message || 'Gán học phí thành công!'), icon: 'success', timer: 2000, showConfirmButton: false })
       }
 
       setShowTuitionModal(false)
@@ -784,12 +833,20 @@ export default function AdminDashboard() {
       await fetchTuition()
       await fetchStats()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
   const handleDeleteTuition = async (fee_id) => {
-    if (!window.confirm('Bạn có chắc muốn xóa khoản học phí này?')) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc muốn xóa khoản học phí này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/tuition/${fee_id}`, { method: 'DELETE' })
       const resJson = await response.json()
@@ -797,7 +854,7 @@ export default function AdminDashboard() {
         await fetchTuition()
         await fetchStats()
       } else {
-        alert(resJson.message)
+        Swal.fire('Thông báo', String(resJson.message), 'info')
       }
     } catch (err) {
       console.error(err)
@@ -805,7 +862,15 @@ export default function AdminDashboard() {
   }
 
   const handleUnpayManual = async (fee_id) => {
-    if (!window.confirm('Bạn có chắc muốn đổi khoản này thành Chưa thu?')) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc muốn đổi khoản này thành Chưa thu?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/tuition/unpay-manual`, {
         method: 'POST',
@@ -818,7 +883,7 @@ export default function AdminDashboard() {
         await fetchPaymentHistory()
         await fetchStats()
       } else {
-        alert(resJson.message)
+        Swal.fire('Thông báo', String(resJson.message), 'info')
       }
     } catch (err) {
       console.error(err)
@@ -826,7 +891,15 @@ export default function AdminDashboard() {
   }
 
   const handlePayManual = async (feeId) => {
-    if (!window.confirm('Xác nhận học sinh đã đóng tiền mặt?')) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Xác nhận học sinh đã đóng tiền mặt?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/tuition/pay-manual`, {
         method: 'POST',
@@ -845,7 +918,15 @@ export default function AdminDashboard() {
   }
 
   const handleApprovePayment = async (paymentId, feeId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn DUYỆT khoản thanh toán này?')) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc chắn muốn DUYỆT khoản thanh toán này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/tuition/approve`, {
         method: 'POST',
@@ -864,7 +945,15 @@ export default function AdminDashboard() {
   }
 
   const handleRejectPayment = async (paymentId, feeId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn TỪ CHỐI khoản thanh toán này?')) return
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc chắn muốn TỪ CHỐI khoản thanh toán này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/tuition/reject`, {
         method: 'POST',
@@ -898,7 +987,7 @@ export default function AdminDashboard() {
       setGradeForm({ id: '', student_id: '', subject_name: '', grade_15m: '', grade_45m: '', midterm_grade: '', final_grade: '' })
       await fetchGrades()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
@@ -917,13 +1006,13 @@ export default function AdminDashboard() {
       })
       const resJson = await response.json()
       if (resJson.success) {
-        alert(resJson.message)
+        Swal.fire('Thông báo', String(resJson.message), 'info')
         await fetchGrades()
       } else {
-        alert('Lỗi: ' + resJson.message)
+        Swal.fire('Lỗi', String('Lỗi: ' + resJson.message), 'error')
       }
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     } finally {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -980,7 +1069,7 @@ export default function AdminDashboard() {
         });
         const resJson = await response.json();
         if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi tạo lịch hàng loạt');
-        alert(`Đã lưu thành công ${schedules.length} buổi học!`);
+        Swal.fire({ title: 'Thành công!', text: String(`Đã lưu thành công ${schedules.length} buổi học!`), icon: 'success', timer: 2000, showConfirmButton: false });
       } else {
         if (scheduleForm.start_time >= scheduleForm.end_time) {
           throw new Error('Giờ bắt đầu phải nhỏ hơn giờ kết thúc!');
@@ -994,7 +1083,7 @@ export default function AdminDashboard() {
         });
         const resJson = await response.json();
         if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi');
-        alert(isEdit ? 'Cập nhật lịch học thành công!' : 'Tạo lịch học thành công!');
+        Swal.fire({ title: 'Thành công!', text: String(isEdit ? 'Cập nhật lịch học thành công!' : 'Tạo lịch học thành công!'), icon: 'success', timer: 2000, showConfirmButton: false });
       }
       
       setShowScheduleModal(false)
@@ -1004,7 +1093,7 @@ export default function AdminDashboard() {
       setWeeklySessions([])
       await fetchSchedules()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
@@ -1034,10 +1123,10 @@ export default function AdminDashboard() {
       });
       const resJson = await response.json();
       if (!response.ok || !resJson.success) throw new Error(resJson.message || 'Lỗi sao chép lịch');
-      alert(`Đã sao chép thành công ${newSchedules.length} ca học sang tuần sau!`);
+      Swal.fire({ title: 'Thành công!', text: String(`Đã sao chép thành công ${newSchedules.length} ca học sang tuần sau!`), icon: 'success', timer: 2000, showConfirmButton: false });
       await fetchSchedules();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -1052,7 +1141,7 @@ export default function AdminDashboard() {
       if (resJson.success) {
         await fetchSchedules()
       } else {
-        alert(resJson.message)
+        Swal.fire('Thông báo', String(resJson.message), 'info')
       }
     } catch (err) {
       console.error(err)
@@ -1069,7 +1158,7 @@ export default function AdminDashboard() {
       setAttendances(resJson.data);
       setShowAttendanceModal(true);
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     } finally {
       setLoading(false);
     }
@@ -1085,12 +1174,12 @@ export default function AdminDashboard() {
       });
       const resJson = await response.json();
       if (!response.ok) throw new Error(resJson.message);
-      alert('Lưu điểm danh thành công!');
+      Swal.fire({ title: 'Thành công!', text: String('Lưu điểm danh thành công!'), icon: 'success', timer: 2000, showConfirmButton: false });
       setShowAttendanceModal(false);
       // Cập nhật state schedules cục bộ để hiển thị Đã Điểm Danh
       setSchedules(prev => prev.map(s => s.schedule_id === attendanceSchedule.schedule_id ? { ...s, attendances: [{ attendance_id: 'temp' }] } : s));
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -1099,10 +1188,10 @@ export default function AdminDashboard() {
       const res = await fetch(`${API_URL}/api/admin/schedules/${id}`, { method: 'DELETE' })
       const resJson = await res.json()
       if (!res.ok) throw new Error(resJson.message || 'Lỗi xoá lịch học')
-      alert('Đã xóa lịch học thành công!')
+      Swal.fire({ title: 'Thành công!', text: String('Đã xóa lịch học thành công!'), icon: 'success', timer: 2000, showConfirmButton: false })
       await fetchSchedules()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
@@ -1125,12 +1214,20 @@ export default function AdminDashboard() {
       await fetchAssignments()
       await fetchStats()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
   const handleDeleteAssignment = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bài tập này? Toàn bộ bài nộp của học sinh cũng sẽ bị xóa.')) return;
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc chắn muốn xóa bài tập này? Toàn bộ bài nộp của học sinh cũng sẽ bị xóa.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const response = await fetch(`${API_URL}/api/admin/assignments/${id}`, {
         method: 'DELETE'
@@ -1141,7 +1238,7 @@ export default function AdminDashboard() {
       await fetchAssignments();
       await fetchStats();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -1156,13 +1253,13 @@ export default function AdminDashboard() {
       const resJson = await response.json()
       if (!response.ok) throw new Error(resJson.message)
 
-      alert('Đã chấm thành công!')
+      Swal.fire({ title: 'Thành công!', text: String('Đã chấm thành công!'), icon: 'success', timer: 2000, showConfirmButton: false })
       setGradingPayload({ submission_id: '', grade: '', feedback: '', subject_name: '' })
       await fetchSubmissions(selectedAssignForGrading.assignment_id)
       await fetchGrades()
       await fetchStats()
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
@@ -1177,13 +1274,13 @@ export default function AdminDashboard() {
       const resJson = await response.json()
       if (!response.ok) throw new Error(resJson.message)
 
-      alert('Đã cập nhật link bài nộp thành công!')
+      Swal.fire({ title: 'Thành công!', text: String('Đã cập nhật link bài nộp thành công!'), icon: 'success', timer: 2000, showConfirmButton: false })
       setEditSubmissionPayload({ submission_id: '', file_url: '' })
       if (selectedAssignForGrading) {
         await fetchSubmissions(selectedAssignForGrading.assignment_id)
       }
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
@@ -1210,7 +1307,7 @@ export default function AdminDashboard() {
             })
           })
         ));
-        alert(`Đã gửi thông báo đến ${studentIds.length} học sinh!`);
+        Swal.fire('Thông báo', String(`Đã gửi thông báo đến ${studentIds.length} học sinh!`), 'info');
       } else {
         const response = await fetch(`${API_URL}/api/admin/notifications`, {
           method: 'POST',
@@ -1219,14 +1316,14 @@ export default function AdminDashboard() {
         })
         const resJson = await response.json()
         if (resJson.success) {
-          alert('Gửi thông báo thành công!')
+          Swal.fire({ title: 'Thành công!', text: String('Gửi thông báo thành công!'), icon: 'success', timer: 2000, showConfirmButton: false })
         }
       }
       setNotifForm({ title: '', message: '', target_type: 'global', target_id: '' })
       await fetchNotifications()
     } catch (err) {
       console.error(err)
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     }
   }
 
@@ -5142,8 +5239,8 @@ export default function AdminDashboard() {
                 {scheduleForm.schedule_id ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      if(window.confirm('Xóa lịch học này?')) {
+                    onClick={async () => {
+                      if ((await Swal.fire({ title: 'Xác nhận', text: 'Xóa lịch học này?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy' })).isConfirmed) {
                         handleDeleteSchedule(scheduleForm.schedule_id);
                         setShowScheduleModal(false);
                       }
@@ -5351,7 +5448,7 @@ export default function AdminDashboard() {
                               if (!val) return;
                               const student = students.find(s => s.phone_number === val);
                               if (!student) {
-                                alert('Không tìm thấy học sinh với SĐT này!');
+                                Swal.fire('Thông báo', String('Không tìm thấy học sinh với SĐT này!'), 'info');
                                 return;
                               }
                               if (!selected.includes(val)) {

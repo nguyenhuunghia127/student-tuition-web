@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Search, Loader2 } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { API_URL } from '../config.js';
 
 export default function AdminLeaveRequests({ session }) {
@@ -30,7 +31,18 @@ export default function AdminLeaveRequests({ session }) {
   }, []);
 
   const handleUpdateStatus = async (id, status) => {
-    if (!window.confirm(`Bạn chắc chắn muốn ${status === 'approved' ? 'chấp thuận' : 'từ chối'} đơn này?`)) return;
+    const actionName = status === 'approved' ? 'chấp thuận' : 'từ chối';
+    const result = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn chắc chắn muốn ${actionName} đơn này?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    
+    if (!result.isConfirmed) return;
+
     try {
       const response = await fetch(`${API_URL}/api/admin/leave-requests/${id}/status`, {
         method: 'PUT',
@@ -42,12 +54,13 @@ export default function AdminLeaveRequests({ session }) {
       });
       const resData = await response.json();
       if (resData.success) {
+        Swal.fire({ title: 'Thành công!', text: `Đã ${actionName} đơn xin phép.`, icon: 'success', timer: 2000, showConfirmButton: false });
         fetchRequests();
       } else {
-        alert(resData.message);
+        Swal.fire('Lỗi', resData.message, 'error');
       }
     } catch (error) {
-      alert('Lỗi khi cập nhật trạng thái');
+      Swal.fire('Lỗi', 'Lỗi khi cập nhật trạng thái', 'error');
     }
   };
 

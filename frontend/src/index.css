@@ -29,6 +29,10 @@ body {
   overflow-x: hidden;
 }
 
+button, [role="button"], input, select {
+  touch-action: manipulation;
+}
+
 /* Custom premium scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
