@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config.js';
+import Swal from 'sweetalert2';
 import { FileText, Plus, Trash2, Search, Link as LinkIcon, Folder, Filter, Edit2, ChevronRight, LayoutGrid, List, FileSpreadsheet, File, Video, MoreVertical } from 'lucide-react';
 
 const getDocumentIcon = (url) => {
@@ -93,19 +94,27 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
       await fetchDocuments();
       if(fetchStats) await fetchStats();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
   const handleDeleteDocument = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn xóa tài liệu này?')) return;
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc muốn xóa tài liệu này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const res = await fetch(`${API_URL}/api/documents/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Lỗi xóa tài liệu');
       await fetchDocuments();
       if(fetchStats) await fetchStats();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
@@ -137,12 +146,20 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
       setCatForm({ id: '', name: '', class_name: '', parent_id: '' });
       await fetchCategories();
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn xóa thư mục này? Các tài liệu bên trong sẽ bị mất thư mục (thành tài liệu chung ngoài cùng).')) return;
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc muốn xóa thư mục này? Các tài liệu bên trong sẽ bị mất thư mục (thành tài liệu chung ngoài cùng).',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    if (!confirmResult.isConfirmed) return;
     try {
       const res = await fetch(`${API_URL}/api/documents/categories/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Lỗi xóa thư mục');
@@ -156,7 +173,7 @@ export default function AdminDocuments({ adminUser, fetchStats }) {
       await fetchCategories();
       await fetchDocuments(); 
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     }
   };
 

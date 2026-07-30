@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -236,24 +237,24 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
       doc.save(filename);
     } catch (err) {
       console.error('PDF export error:', err);
-      alert('Không thể xuất PDF. Vui lòng thử lại!');
+      Swal.fire('Thông báo', String('Không thể xuất PDF. Vui lòng thử lại!'), 'info');
     }
   };
 
   // ── Copy Week ──
-  const handleCopyWeek = () => {
+  const handleCopyWeek = async () => {
     if (!onCopyWeek) return;
     const weekScheds = weekDays.flatMap(day => dedup(filtered.filter(s => s.study_date && s.study_date.startsWith(toDateStr(day)))));
-    if (weekScheds.length === 0) { alert('Không có lịch học trong tuần này để sao chép!'); return; }
+    if (weekScheds.length === 0) { Swal.fire('Thông báo', String('Không có lịch học trong tuần này để sao chép!'), 'info'); return; }
     setCopyConfirm(true);
-    if (window.confirm(`Sao chép ${weekScheds.length} ca học sang tuần sau?`)) {
+    if ((await Swal.fire({ title: 'Xác nhận', text: `Sao chép ${weekScheds.length} ca học sang tuần sau?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy' })).isConfirmed) {
       onCopyWeek(weekScheds);
     }
     setCopyConfirm(false);
   };
 
   // ── Drag & Drop ──
-  const handleDrop = (e, targetDay) => {
+  const handleDrop = async (e, targetDay) => {
     e.preventDefault();
     if (!dragEnabled) return;
 
@@ -289,21 +290,29 @@ export default function WeeklyCalendar({ schedules = [], onEditSchedule, onUpdat
     // Safety 1: Attended schedule protection
     const isAttended = sch.attendances && sch.attendances.length > 0;
     if (isAttended) {
-      const confirmAttended = window.confirm(
-        `⚠️ CẢNH BÁO DI CHUYỂN CA HỌC ĐÃ ĐIỂM DANH:\n\nCa học môn "${sch.subject_name}" ĐÃ CÓ DỮ LIỆU ĐIỂM DANH!\n\nBạn có chắc chắn muốn thay đổi lịch học này không?`
-      );
+      const confirmAttended = (await Swal.fire({
+        title: 'CẢNH BÁO',
+        text: `Ca học môn "${sch.subject_name}" ĐÃ CÓ DỮ LIỆU ĐIỂM DANH! Bạn có chắc chắn muốn thay đổi lịch học này không?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Đồng ý',
+        cancelButtonText: 'Hủy'
+      })).isConfirmed;
       if (!confirmAttended) return;
     }
 
     // Safety 2: Confirmation prompt with details
-    const confirmMove = window.confirm(
-      `XÁC NHẬN DI CHUYỂN LỊCH HỌC:\n` +
-      `-----------------------------------\n` +
-      `Môn học: ${sch.subject_name}\n` +
-      `Từ:  Ngày ${oldDateStr} (${oldStartStr} - ${oldEndStr})\n` +
-      `Sang: Ngày ${newDateStr} (${newStartStr} - ${newEndStr})\n\n` +
-      `Bạn có đồng ý thay đổi không?`
-    );
+    const confirmMove = (await Swal.fire({
+      title: 'Xác nhận di chuyển lịch học',
+      html: `Môn học: <b>${sch.subject_name}</b><br/>
+             Từ: <b>Ngày ${oldDateStr} (${oldStartStr} - ${oldEndStr})</b><br/>
+             Sang: <b>Ngày ${newDateStr} (${newStartStr} - ${newEndStr})</b><br/><br/>
+             Bạn có đồng ý thay đổi không?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    })).isConfirmed;
 
     if (!confirmMove) return;
 

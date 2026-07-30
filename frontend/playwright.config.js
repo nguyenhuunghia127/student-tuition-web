@@ -17,6 +17,9 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    // We only test Chromium to speed up the execution
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    }
   ],
 });

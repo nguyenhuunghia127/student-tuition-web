@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom'
 import { 
   Search, BookOpen, Calendar, DollarSign, Award, Bell, 
@@ -65,11 +66,11 @@ export default function StudentDashboard() {
       if (!response.ok || !resJson.success) {
         throw new Error(resJson.message || 'Lỗi gửi yêu cầu phúc khảo')
       }
-      alert('Gửi yêu cầu phúc khảo thành công. Vui lòng chờ admin duyệt.')
+      Swal.fire({ title: 'Thành công!', text: String('Gửi yêu cầu phúc khảo thành công. Vui lòng chờ admin duyệt.'), icon: 'success', timer: 2000, showConfirmButton: false })
       setShowAppealModal(false)
       fetchDashboardData(student)
     } catch (err) {
-      alert(err.message)
+      Swal.fire('Lỗi', String(err.message), 'error')
     } finally {
       setSubmittingAppeal(false)
     }
@@ -92,7 +93,7 @@ export default function StudentDashboard() {
       if (!response.ok || !resData.success) throw new Error(resData.message || 'Lỗi tạo mã VietQR');
       setPayFee({ ...fee, qrData: resData.data });
     } catch (err) {
-      alert('Lỗi tạo mã QR thanh toán: ' + err.message);
+      Swal.fire('Lỗi', String('Lỗi tạo mã QR thanh toán: ' + err.message), 'error');
     } finally {
       setLoadingFeeId(null);
     }
@@ -112,11 +113,11 @@ export default function StudentDashboard() {
       });
       const resData = await response.json();
       if (!response.ok || !resData.success) throw new Error(resData.message || 'Lỗi xác nhận thanh toán');
-      alert('Xác nhận thanh toán học phí qua VietQR thành công!');
+      Swal.fire({ title: 'Thành công!', text: String('Xác nhận thanh toán học phí qua VietQR thành công!'), icon: 'success', timer: 2000, showConfirmButton: false });
       setPayFee(null);
       fetchDashboardData(student);
     } catch (err) {
-      alert(err.message);
+      Swal.fire('Lỗi', String(err.message), 'error');
     } finally {
       setSubmittingPayment(false);
     }
@@ -1033,7 +1034,7 @@ export default function StudentDashboard() {
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(payFee.qrData.transferContent);
-                      alert('Đã sao chép nội dung chuyển khoản!');
+                      Swal.fire('Thông báo', String('Đã sao chép nội dung chuyển khoản!'), 'info');
                     }}
                     className="text-[10px] px-2 py-1 bg-cyan-500 text-slate-950 font-bold rounded cursor-pointer hover:bg-cyan-400"
                   >

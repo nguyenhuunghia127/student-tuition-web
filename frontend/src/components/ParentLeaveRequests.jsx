@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Loader2, Plus, Send } from 'lucide-react';
 import { API_URL } from '../config.js';
+import Swal from 'sweetalert2';
 
 export default function ParentLeaveRequests({ data, onLeaveSubmit }) {
   const [showForm, setShowForm] = useState(false);
@@ -12,7 +13,7 @@ export default function ParentLeaveRequests({ data, onLeaveSubmit }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!leaveDate || !reason || !selectedStudentId) {
-      alert('Vui lòng điền đủ thông tin và chọn học sinh');
+      Swal.fire('Thông báo', String('Vui lòng điền đủ thông tin và chọn học sinh'), 'info');
       return;
     }
     setSubmitting(true);
@@ -30,16 +31,16 @@ export default function ParentLeaveRequests({ data, onLeaveSubmit }) {
       });
       const resData = await response.json();
       if (resData.success) {
-        alert('Nộp đơn xin phép thành công!');
+        Swal.fire({ title: 'Thành công!', text: String('Nộp đơn xin phép thành công!'), icon: 'success', timer: 2000, showConfirmButton: false });
         setShowForm(false);
         setLeaveDate('');
         setReason('');
         if (onLeaveSubmit) onLeaveSubmit();
       } else {
-        alert(resData.message);
+        Swal.fire('Thông báo', String(resData.message), 'info');
       }
     } catch (error) {
-      alert('Lỗi khi nộp đơn xin phép');
+      Swal.fire('Lỗi', String('Lỗi khi nộp đơn xin phép'), 'error');
     } finally {
       setSubmitting(false);
     }
